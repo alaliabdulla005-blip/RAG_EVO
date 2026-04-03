@@ -41,9 +41,12 @@ data/raw/*
 logs/*
 !logs/.gitkeep
 
-# Results (keep .gitkeep)
+# Results (keep .gitkeep and committed artifacts)
 results/*
 !results/.gitkeep
+!results/smoke/
+results/smoke/*
+!results/smoke/smoke_test_output.json
 
 # MyPy
 .mypy_cache/
