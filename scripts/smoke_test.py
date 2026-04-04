@@ -1,7 +1,9 @@
 from pathlib import Path
+
 from dotenv import load_dotenv
-from rag_evo.generation.wrapper import GeneratorWrapper
+
 from rag_evo.generation.config import DecodingConfig
+from rag_evo.generation.wrapper import GeneratorWrapper
 
 # Explicitly point to the .env file in the project root
 load_dotenv(Path(__file__).parent.parent / ".env")
