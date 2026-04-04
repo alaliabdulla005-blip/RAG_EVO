@@ -22,6 +22,11 @@ SYSTEM_PROMPT = (
     "You are a helpful assistant. Answer the question based only on the "
     "provided context. Cite the document you used as [DOC_N]."
 )
+
+# Full dummy corpus — retrieval manually simulated by selecting DOC_2
+# [DOC_1]: "France is a country in Western Europe."
+# [DOC_2]: "Paris is the capital and largest city of France."  <- manually selected
+# [DOC_3]: "The Louvre museum is located in Paris."
 CONTEXT_BLOCK = "[DOC_2]: Paris is the capital and largest city of France."
 MANUALLY_SELECTED_CHUNK = "[DOC_2]: Paris is the capital and largest city of France."
 
