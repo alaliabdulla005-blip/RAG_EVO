@@ -50,6 +50,12 @@ results/smoke/*
 !results/baseline/
 results/baseline/*
 !results/baseline/bm25_baseline_sample.jsonl
+!results/evaluation/
+results/evaluation/*
+!results/evaluation/bm25_baseline_eval/
+results/evaluation/bm25_baseline_eval/*
+!results/evaluation/bm25_baseline_eval/per_record_metrics.jsonl
+!results/evaluation/bm25_baseline_eval/aggregate_metrics.json
 
 # MyPy
 .mypy_cache/

@@ -65,16 +65,22 @@ def chunk_document(
     if not tokens:
         return []
 
+    # Pre-compute character position of each token
+    token_positions: list[int] = []
+    char_pos = 0
+    for token in tokens:
+        token_positions.append(char_pos)
+        char_pos += len(token) + 1  # +1 for space
+
     step = max(1, int(chunk_size * (1 - overlap)))
     chunks: list[Chunk] = []
-    search_from = 0
 
     for index, start in enumerate(range(0, len(tokens), step)):
         window = tokens[start : start + chunk_size]
         text = " ".join(window)
-        char_start = doc.text.find(text, search_from)
-        char_end = char_start + len(text)
-        search_from = char_start + 1
+        char_start = token_positions[start]
+        last_idx = min(start + chunk_size, len(tokens)) - 1
+        char_end = token_positions[last_idx] + len(tokens[last_idx])
         chunks.append(
             Chunk(
                 chunk_id=f"{doc.doc_id}__chunk_{index:04d}",

@@ -75,6 +75,16 @@ def test_chunk_id_format() -> None:
     assert chunks[0].chunk_id == "test_doc__chunk_0000"
 
 
+def test_chunk_char_start_is_valid() -> None:
+    tokens = [f"w{i}" for i in range(130)]
+    doc = _doc(" ".join(tokens))
+    chunks = chunk_document(doc, chunk_size=64, overlap=0.0)
+    for chunk in chunks:
+        assert chunk.char_start >= 0, f"char_start is {chunk.char_start}"
+        assert chunk.char_end > chunk.char_start
+        assert doc.text[chunk.char_start : chunk.char_end] == chunk.text
+
+
 def test_chunk_corpus_flat_list() -> None:
     tokens = [f"w{i}" for i in range(64)]
     text = " ".join(tokens)
