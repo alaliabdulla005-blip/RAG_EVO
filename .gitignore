@@ -56,6 +56,12 @@ results/evaluation/*
 results/evaluation/bm25_baseline_eval/*
 !results/evaluation/bm25_baseline_eval/per_record_metrics.jsonl
 !results/evaluation/bm25_baseline_eval/aggregate_metrics.json
+!results/configs/
+results/configs/*
+!results/configs/phase8_verify/
+results/configs/phase8_verify/*
+!results/configs/phase8_verify/micro_default.json
+!results/configs/phase8_verify/full_default.json
 
 # MyPy
 .mypy_cache/
