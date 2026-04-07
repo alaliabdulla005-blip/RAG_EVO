@@ -34,7 +34,8 @@ def _rate_limit_error() -> groq.RateLimitError:
 
 
 @pytest.fixture()
-def wrapper() -> GeneratorWrapper:
+def wrapper(monkeypatch) -> GeneratorWrapper:
+    monkeypatch.setenv("INFERENCE_PROVIDER", "groq")
     return GeneratorWrapper(api_key="test-key", model_id="test-model")
 
 
@@ -122,7 +123,8 @@ def test_generate_constructs_prompt_correctly(wrapper: GeneratorWrapper) -> None
     assert f"Question: {query}" in user_content
 
 
-def test_generate_retries_on_rate_limit() -> None:
+def test_generate_retries_on_rate_limit(monkeypatch) -> None:
+    monkeypatch.setenv("INFERENCE_PROVIDER", "groq")
     wrapper = GeneratorWrapper(
         api_key="test-key", model_id="test-model", max_retries=1
     )
@@ -150,7 +152,8 @@ def test_generate_retries_on_rate_limit() -> None:
     assert call_count == 2
 
 
-def test_generate_raises_after_max_retries() -> None:
+def test_generate_raises_after_max_retries(monkeypatch) -> None:
+    monkeypatch.setenv("INFERENCE_PROVIDER", "groq")
     wrapper = GeneratorWrapper(
         api_key="test-key", model_id="test-model", max_retries=2
     )
@@ -180,3 +183,24 @@ def test_generate_raises_on_empty_answer(wrapper: GeneratorWrapper) -> None:
     ):
         with pytest.raises(ValueError, match="empty answer"):
             wrapper.generate(system_prompt="sys", context_block="ctx", query="q")
+
+
+# ---------------------------------------------------------------------------
+# Provider selection tests
+# ---------------------------------------------------------------------------
+
+
+def test_wrapper_uses_sambanova_when_env_set(monkeypatch) -> None:
+    monkeypatch.setenv("INFERENCE_PROVIDER", "sambanova")
+    monkeypatch.setenv("SAMBANOVA_API_KEY", "test_key")
+    with patch("rag_evo.generation.wrapper.openai.OpenAI") as mock_openai:
+        mock_openai.return_value = MagicMock()
+        w = GeneratorWrapper()
+    assert w.provider == "sambanova"
+    mock_openai.assert_called_once()
+
+
+def test_wrapper_uses_groq_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("INFERENCE_PROVIDER", raising=False)
+    w = GeneratorWrapper(api_key="test-key")
+    assert w.provider == "groq"

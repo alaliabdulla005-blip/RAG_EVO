@@ -139,6 +139,7 @@ class ExperimentRunner:
         self._harness = harness
         self._cache = cache
         self._reranker = reranker
+        self._index_cache: dict[tuple, _RetrievableAdapter] = {}
 
     def run(self, run_config: RunConfig) -> RunResult:
         """Evaluate one pipeline configuration on all QA records.
@@ -156,20 +157,29 @@ class ExperimentRunner:
         reranker_enabled = getattr(pc, "reranker_enabled", False)
         max_output_tokens = getattr(pc, "max_output_tokens", 256)
 
-        retriever_cfg = RetrieverConfig(
-            retriever_type=retriever_type,
-            chunk_size=pc.chunk_size,
-            overlap=pc.overlap,
-            top_k=pc.top_k,
-            reranker_enabled=reranker_enabled,
-        )
+        index_key = (pc.chunk_size, pc.overlap, retriever_type)
 
-        retrieve_fn = build_retriever(
-            retriever_cfg,
-            run_config.corpus_documents,
-            reranker=self._reranker if reranker_enabled else None,
-        )
-        adapted_retriever = _RetrievableAdapter(retrieve_fn)
+        if index_key in self._index_cache:
+            adapted_retriever = self._index_cache[index_key]
+            logger.info("Index cache hit for %s", index_key)
+        else:
+            retriever_cfg = RetrieverConfig(
+                retriever_type=retriever_type,
+                chunk_size=pc.chunk_size,
+                overlap=pc.overlap,
+                top_k=pc.top_k,
+                reranker_enabled=reranker_enabled,
+            )
+            retrieve_fn = build_retriever(
+                retriever_cfg,
+                run_config.corpus_documents,
+                reranker=(
+                    self._reranker if reranker_enabled else None
+                ),
+            )
+            adapted_retriever = _RetrievableAdapter(retrieve_fn)
+            self._index_cache[index_key] = adapted_retriever
+            logger.info("Index cache miss, built for %s", index_key)
 
         decoding = DecodingConfig(
             temperature=pc.temperature,

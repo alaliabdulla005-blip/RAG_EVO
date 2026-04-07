@@ -291,3 +291,34 @@ def test_generate_run_id_format() -> None:
     assert re.match(r"^\d{8}_\d{6}_[0-9a-f]{8}$", run_id), (
         f"run_id {run_id!r} does not match expected format"
     )
+
+
+def test_index_cache_prevents_rebuild(tmp_path: Path) -> None:
+    """Two runs with same (chunk_size, overlap, retriever_type) should
+    build the retriever only once."""
+    from unittest.mock import patch
+
+    records = [_record()]
+    runner, mock_wrapper, mock_harness, _ = _make_runner(
+        tmp_path, records
+    )
+
+    mock_bm25 = MagicMock()
+    mock_bm25.retrieve.return_value = _fake_retrieval_result()
+
+    with patch(
+        "rag_evo.retrieval.retriever_factory.chunk_corpus",
+        return_value=[_chunk()],
+    ) as mock_chunk, patch(
+        "rag_evo.retrieval.retriever_factory.BM25Retriever",
+        return_value=mock_bm25,
+    ):
+        runner.run(_make_run_config(tmp_path, records, run_id="run_a"))
+        # Refresh harness mock for second call
+        mock_harness.evaluate_batch.return_value = (
+            [_fake_record_metrics()], _fake_aggregate(1)
+        )
+        runner.run(_make_run_config(tmp_path, records, run_id="run_b"))
+
+    # chunk_corpus called only once — index was reused
+    assert mock_chunk.call_count == 1
