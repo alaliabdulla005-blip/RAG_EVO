@@ -1,81 +1,49 @@
-# Budget Checkpoint — Before Phase 10
+# Budget Checkpoint — Phase 10 GA Pilot (Updated with Actuals)
 
-Date: 2026-04-07
+Date: 08 April 2026
 
-## Measured Actuals (n=10, BM25, zero-shot, Groq free tier)
-- Mean input tokens per query: 626.3
-- Mean output tokens per query: 22.3
-- Mean tokens per query (total): 648.6
-- True query latency (no rate limit): ~150 ms
-- Rate-limited latency (Groq free): 2,475 ms mean
+---
 
-## Groq Free Tier Rate Limits (confirmed from dashboard)
-- Tokens per minute: 6,000 (BINDING constraint)
-- Requests per day: 14,400
-- Tokens per day: 500,000
-- Effective throughput: 9.2 queries/minute (token-limited)
-- Days needed for full pilot (worst case): 9.7 days
-- Verdict: INFEASIBLE — exceeds 8-day deadline
+## Estimated vs Actual
 
-## Provider Evaluation Summary
-All providers evaluated before selecting SambaNova:
+| Item | Estimated | Actual |
+|------|-----------|--------|
+| Total API calls | 7,500 | ~5,385 (cache reduced unique calls) |
+| Input tokens | ~8.25M | **8,078,295** (SambaNova dashboard) |
+| Output tokens | ~375K | **189,155** (SambaNova dashboard) |
+| Input token cost | ~$0.83 | **~$0.81** |
+| Output token cost | ~$0.08 | **~$0.04** |
+| Total cost | ~$0.90 | **~$0.85** |
+| Wall clock time | ~5 hours | **~5 hours active** (17,982s logged elapsed) |
+| Provider | SambaNova Developer | SambaNova Developer ✓ |
 
-| Provider | Precision | Cost | Verdict |
-|---|---|---|---|
-| Groq free | TruePoint quantised | $0 | Too slow for GA |
-| Groq Developer | TruePoint quantised | ~$2.55 | Precision issue vs literature |
-| Together AI Turbo | FP8 | ~$3.30 | Not full precision |
-| Together AI AWQ Int4 | 4-bit | Cheapest | Significantly degraded |
-| Together AI BF16 | Full BF16 | N/A | Does not exist at serverless tier |
-| HuggingFace API | Routes to providers above | $9/month+ | Not independent |
-| Local vLLM | Full BF16 | $0 | Requires 16 GB — only 6 GB available |
-| **SambaNova Cloud** | **Full BF16/FP32** | **$0 free tier** | **SELECTED** |
+---
 
-## Selected Provider: SambaNova Cloud
-- Model: Meta-Llama-3.1-8B-Instruct
-- Precision: Full BF16/FP32 mixed (confirmed by official docs + independent benchmarks)
-- Matches literature: Yes — Orbach et al. (2025) and Park et al. (2025) use full-precision Llama-3.1-8B-Instruct
-- Free tier: 30 RPM permanent (no expiry)
-- Signup credit: $5 (~30M tokens on Llama 8B, ~3 month expiry)
-- Base URL: https://api.sambanova.ai/v1
-- API compatibility: OpenAI-compatible
+## What actually happened
 
-## Full Dissertation Cost Projection (SambaNova)
-| Phase | Calls (realistic) | Tokens (est.) | Cost |
-|---|---|---|---|
-| Phase 10 — GA pilot | 1,200 | 778,320 | $0.08 |
-| Phase 12 — Full General-QA | 6,000 | 3,891,600 | $0.39 |
-| Phase 14 — Legal track | 3,000 | 1,945,800 | $0.19 |
-| **Total** | **10,200** | **6,615,720** | **$0.67** |
+The pilot ran all 15 generations and completed at approximately 06:51 on 8 April 2026. The process continued running for approximately 3 additional hours after the GA finished — likely due to a post-GA artifact-saving or evaluation step in run_ga_pilot.py that either hung or made additional API calls. The process was killed at approximately 10:00, at which point the completed summary was printed from memory. The GA results are genuine — generation 13's 0.24-second completion time is physically impossible without full cache hits, confirming both the result and index caches were working.
 
-Covered by $5 signup credit with $4.33 remaining.
+**Rate limit issue encountered:** SambaNova's free tier is capped at 20 requests per day, which blocked the pilot entirely. Resolution: upgraded to SambaNova Developer tier. Actual daily usage peaked at 8,078,295 input tokens on 8 April — well within the Developer tier's 20M token/day limit.
 
-## GA Pilot Parameters (full quality — no reduction)
-- Population: 10
-- Generations: 15
-- Records per evaluation: 50
-- Total calls (realistic, 20% cache): 6,000
-- Time per generation at 30 RPM: ~17 minutes active querying
-- Timeline: Feasible within deadline with per-generation checkpointing
+---
 
-## Two-Tier Provider Strategy
-Development (Phases 1–9): Groq free tier (llama-3.1-8b-instant, TruePoint quantised)
-  — Used for pipeline construction, interface validation, smoke tests
-  — Zero cost, permanent free tier
-  — Development metrics are NOT reported results
+## Actual per-generation costs
 
-Experiments (Phase 10+): SambaNova Cloud (Meta-Llama-3.1-8B-Instruct, full BF16/FP32)
-  — All reported results produced here
-  — Matches literature comparator precision
+| Phase | Generations | Avg elapsed | Cache behaviour |
+|-------|-------------|-------------|-----------------|
+| Exploration (Gen 0–4) | 5 | 2,044s | Mostly misses — new configs |
+| Convergence (Gen 5–12) | 8 | 737s | Increasing hits |
+| Full convergence (Gen 13) | 1 | 0.24s | All 50 records cached |
+| Late (Gen 14) | 1 | 970s | Mixed — new mutations |
 
-## Phase 10 Requirements
-1. Extend GeneratorWrapper to support SambaNova via OpenAI-compatible endpoint
-2. INFERENCE_PROVIDER env variable switches between sambanova/groq
-3. Re-run Phase 6 baseline (10 queries) on SambaNova for official baseline metrics
-4. Per-generation checkpointing mandatory
-5. Index caching keyed by (chunk_size, overlap, retriever_type)
+---
 
-## Verdict
-FULLY FEASIBLE at full quality parameters.
-Total cost: $0.67 — covered by $5 signup credit.
-Timeline: ~17 min active querying per generation, spread across sessions.
+## Decision for Phase 12 full experiments
+
+Proceed, with the following adjustments based on pilot learnings:
+
+1. **Population size: increase from 10 to 20.** The pilot showed premature convergence from generation 5 onwards — a ten-generation plateau with no improvement. Larger population maintains genetic diversity longer.
+2. **Generations: keep at 15.** If stagnation (no best improvement for 3+ generations) is detected, activate restart mechanism.
+3. **Records: keep 50 for full Phase 12 run.** Long generation 0 time was due to all cache misses; subsequent generations will be faster as the cache fills.
+4. **Fix post-GA process hang.** Identify and fix the code in run_ga_pilot.py that kept the process alive for 3 hours after the GA completed.
+5. **Estimated Phase 12 cost:** 20 individuals × 50 records × 15 generations = up to 15,000 unique calls. With cache reducing actual calls to ~60%: ~9,000 calls × 1,500 avg tokens = ~13.5M input tokens × $0.10/M = **~$1.35 total**.
