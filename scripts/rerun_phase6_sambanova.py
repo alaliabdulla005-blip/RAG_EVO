@@ -7,20 +7,23 @@ Run from project root: python scripts/rerun_phase6_sambanova.py
 import os
 import time
 from pathlib import Path
+
 from dotenv import load_dotenv
+
 load_dotenv(Path(".env"))
 
+import re
+
 from openai import OpenAI
+
 from rag_evo.data.hotpotqa_loader import load_records
-from rag_evo.retrieval.chunker import chunk_corpus
-from rag_evo.retrieval.bm25_retriever import build_and_save_index
+from rag_evo.evaluation.harness import EvaluationHarness
 from rag_evo.generation.config import DecodingConfig
 from rag_evo.pipeline.prompt_builder import build_prompt_components
 from rag_evo.pipeline.rag_pipeline import PipelineResult, save_results
-from rag_evo.evaluation.harness import EvaluationHarness
+from rag_evo.retrieval.bm25_retriever import build_and_save_index
+from rag_evo.retrieval.chunker import chunk_corpus
 from rag_evo.utils.seed import set_global_seed
-import re
-import dataclasses
 
 set_global_seed(42)
 
@@ -33,9 +36,9 @@ MODEL_ID = os.getenv("SAMBANOVA_MODEL_ID", "Meta-Llama-3.1-8B-Instruct")
 DECODING = DecodingConfig(temperature=0.0, max_tokens=150, seed=42)
 
 print("=== Phase 6 Baseline Re-run — SambaNova (Full BF16/FP32) ===\n")
-print(f"Provider: SambaNova Cloud")
+print("Provider: SambaNova Cloud")
 print(f"Model:    {MODEL_ID}")
-print(f"Precision: Full BF16/FP32 mixed\n")
+print("Precision: Full BF16/FP32 mixed\n")
 
 # ── Load data ─────────────────────────────────────────────
 print("Loading data...")
@@ -111,7 +114,7 @@ per_record, aggregate = harness.evaluate_batch(results)
 
 # ── Print results ─────────────────────────────────────────
 print(f"\n=== Official Baseline Metrics — SambaNova (n={aggregate.num_records}) ===")
-print(f"Provider:            SambaNova Cloud (full BF16/FP32)")
+print("Provider:            SambaNova Cloud (full BF16/FP32)")
 print(f"Model:               {MODEL_ID}")
 print(f"EM:                  {aggregate.mean_em:.4f}")
 print(f"F1:                  {aggregate.mean_f1:.4f}")

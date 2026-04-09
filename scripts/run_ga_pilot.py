@@ -18,7 +18,7 @@ load_dotenv(Path(".env"))
 from rag_evo.cache.cache import ResultCache
 from rag_evo.config.schema import MicroPilotConfig
 from rag_evo.config.space import SearchSpace
-from rag_evo.data.hotpotqa_loader import build_debug_subset, load_hotpotqa
+from rag_evo.data.hotpotqa_loader import load_records
 from rag_evo.evaluation.harness import EvaluationHarness
 from rag_evo.ga.fitness import FitnessWeights
 from rag_evo.ga.loop import GAConfig, GeneticAlgorithm
@@ -34,18 +34,17 @@ logging.basicConfig(
 paths = get_project_paths()
 
 # ── Load data ────────────────────────────────────────────────────────────────
-print("Loading HotpotQA validation split...")
-qa_records, corpus_documents = load_hotpotqa(
-    split="validation", cache_dir=paths.data / "cache"
+print("Loading HotpotQA debug subset...")
+debug_records, corpus_documents = load_records(
+    Path("data/processed/hotpotqa_debug")
 )
-debug_records = build_debug_subset(qa_records, n=50)
 print(f"Debug subset: {len(debug_records)} records, "
       f"{len(corpus_documents)} corpus docs")
 
 # ── Build components ─────────────────────────────────────────────────────────
 wrapper = GeneratorWrapper()
 harness = EvaluationHarness(debug_records)
-cache = ResultCache(paths.data / "cache" / "result_cache")
+cache = ResultCache(paths.root / "data" / "cache" / "result_cache")
 runner = ExperimentRunner(
     wrapper=wrapper, harness=harness, cache=cache
 )
@@ -69,7 +68,7 @@ template = RunConfig(
     run_id="template",
     qa_records=debug_records,
     corpus_documents=corpus_documents,
-    cache_dir=paths.data / "cache" / "result_cache",
+    cache_dir=paths.root / "data" / "cache" / "result_cache",
     results_dir=paths.results / "runs",
     model_id=wrapper._model_id,
     seed=42,

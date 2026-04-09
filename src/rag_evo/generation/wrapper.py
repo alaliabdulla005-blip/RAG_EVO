@@ -71,8 +71,8 @@ class GeneratorWrapper:
         api_key: str | None = None,
         model_id: str | None = None,
         default_decoding: DecodingConfig | None = None,
-        max_retries: int = 3,
-        retry_base_delay: float = 1.0,
+        max_retries: int = 5,
+        retry_base_delay: float = 15.0,
     ) -> None:
         self._default_decoding = default_decoding or DecodingConfig()
         self._max_retries = max_retries
@@ -91,7 +91,9 @@ class GeneratorWrapper:
                 "SAMBANOVA_BASE_URL", _DEFAULT_SAMBANOVA_BASE_URL
             )
             self._client = openai.OpenAI(
-                api_key=resolved_key, base_url=base_url
+                api_key=resolved_key,
+                base_url=base_url,
+                max_retries=0,
             )
         else:
             # Default: groq
@@ -176,7 +178,9 @@ class GeneratorWrapper:
                 break
             except rate_limit_exc as exc:
                 if attempt < self._max_retries:
-                    delay = self._retry_base_delay * (2**attempt)
+                    delay = min(
+                        self._retry_base_delay * (2**attempt), 60.0
+                    )
                     self._logger.warning(
                         "Rate limit hit, attempt %d/%d. "
                         "Retrying in %.1fs.",
@@ -211,6 +215,9 @@ class GeneratorWrapper:
         self._logger.debug(
             "raw_prompt=%r raw_answer=%r", user_message, raw_answer
         )
+
+        # Pace requests to ~30/min for SambaNova free tier
+        time.sleep(2.0)
 
         return WrapperOutput(
             answer=answer,
