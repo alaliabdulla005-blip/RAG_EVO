@@ -76,6 +76,76 @@ class GenerationRecord:
     elapsed_s: float
 
 
+def load_latest_checkpoint(
+    output_dir: Path,
+    search_space: SearchSpace,
+) -> (
+    tuple[
+        list[GenerationRecord],
+        list[MicroPilotConfig | FullV1Config],
+        list[float],
+        tuple,
+    ]
+    | None
+):
+    """Load the most recent per-generation checkpoint from disk.
+
+    Reads all gen_NNN/ subdirectories, reconstructs GenerationRecord
+    objects, the last generation's population and fitnesses, and the
+    saved RNG state so the GA can resume deterministically.
+
+    Args:
+        output_dir: Directory that contains gen_NNN/ subdirectories.
+        search_space: SearchSpace used for this GA run. Its version
+            determines whether to reconstruct MicroPilotConfig or
+            FullV1Config objects.
+
+    Returns:
+        (records, population, fitnesses, rng_state) if at least one
+        checkpoint generation exists, else None.
+    """
+    gen_dirs = sorted(output_dir.glob("gen_*"))
+    if not gen_dirs:
+        return None
+
+    records: list[GenerationRecord] = []
+    for gen_dir in gen_dirs:
+        record_path = gen_dir / "record.json"
+        if record_path.exists():
+            d = json.loads(record_path.read_text(encoding="utf-8"))
+            records.append(GenerationRecord(**d))
+
+    if not records:
+        return None
+
+    last_gen_dir = gen_dirs[-1]
+
+    pop_path = last_gen_dir / "population.json"
+    pop_data = json.loads(pop_path.read_text(encoding="utf-8"))
+    if search_space._version == "micro_pilot":
+        population: list[MicroPilotConfig | FullV1Config] = [
+            MicroPilotConfig.from_dict(entry["config"])
+            for entry in pop_data
+        ]
+    else:
+        population = [
+            FullV1Config.from_dict(entry["config"])
+            for entry in pop_data
+        ]
+    fitnesses = [entry["fitness"] for entry in pop_data]
+
+    rng_path = last_gen_dir / "rng_state.json"
+    raw = json.loads(rng_path.read_text(encoding="utf-8"))
+    rng_state: tuple = (raw[0], tuple(raw[1]), raw[2])
+
+    logger.info(
+        "Loaded checkpoint: %d generation(s) complete, last=%s",
+        len(records),
+        last_gen_dir.name,
+    )
+    return records, population, fitnesses, rng_state
+
+
 class GeneticAlgorithm:
     """GA loop that evolves pipeline configs via ExperimentRunner.
 
@@ -177,11 +247,27 @@ class GeneticAlgorithm:
         return new_pop[: gc.population_size]
 
     def run(self) -> list[GenerationRecord]:
-        """Run the full GA loop from scratch.
+        """Run the full GA loop, resuming from checkpoint if available.
+
+        If output_dir is set and contains gen_NNN/ checkpoint directories,
+        the run automatically resumes from the latest saved state so that
+        long experiments survive interruptions without losing work.
 
         Returns:
             List of GenerationRecord, one per generation.
         """
+        if self._output_dir is not None:
+            checkpoint = load_latest_checkpoint(
+                self._output_dir, self._space
+            )
+            if checkpoint is not None:
+                records, population, fitnesses, rng_state = checkpoint
+                logger.info(
+                    "Resuming from gen %d checkpoint",
+                    len(records) - 1,
+                )
+                self._rng.setstate(rng_state)
+                return self.resume(records, population, fitnesses)
         population = self._init_population()
         return self._evolve(population, start_gen=0)
 
@@ -308,5 +394,13 @@ class GeneticAlgorithm:
         ]
         (gen_dir / "population.json").write_text(
             json.dumps(pop_data, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        # Save RNG state so run() can resume deterministically after
+        # interruption. json.dumps serialises tuples as JSON arrays;
+        # load_latest_checkpoint converts them back to tuples on load.
+        (gen_dir / "rng_state.json").write_text(
+            json.dumps(self._rng.getstate()),
             encoding="utf-8",
         )

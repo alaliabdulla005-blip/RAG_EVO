@@ -8,6 +8,7 @@ Requires INFERENCE_PROVIDER and matching API key in .env.
 
 import json
 import logging
+import sys
 from dataclasses import asdict
 from pathlib import Path
 
@@ -115,3 +116,7 @@ summary_path.write_text(
     encoding="utf-8",
 )
 print(f"\nSummary saved to {summary_path}")
+
+# Force exit — httpx connection pool in the openai/groq client holds
+# non-daemon threads that prevent natural process termination.
+sys.exit(0)
