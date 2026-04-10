@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import threading
 from dataclasses import asdict
 from pathlib import Path
 
@@ -83,6 +84,12 @@ class ResultCache:
         self._enabled = enabled
         self._hits = 0
         self._misses = 0
+        # Protects _hits/_misses counters when multiple threads call
+        # get()/set() concurrently (parallel GA individual evaluation).
+        # File operations are safe without locking because every cache key
+        # maps to a unique path (SHA-256 of record+config), so threads
+        # always write to disjoint files.
+        self._lock = threading.Lock()
         if self._enabled:
             self._cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -99,16 +106,19 @@ class ResultCache:
             PipelineResult if cached, None if not found.
         """
         if not self._enabled:
-            self._misses += 1
+            with self._lock:
+                self._misses += 1
             return None
 
         path = self._path_for(key)
         if not path.exists():
-            self._misses += 1
+            with self._lock:
+                self._misses += 1
             logger.debug("Cache miss: %s...", key[:8])
             return None
 
-        self._hits += 1
+        with self._lock:
+            self._hits += 1
         logger.debug("Cache hit: %s...", key[:8])
         d = json.loads(path.read_text(encoding="utf-8"))
         d["retrieved_chunks"] = [Chunk(**c) for c in d["retrieved_chunks"]]

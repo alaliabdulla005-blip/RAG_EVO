@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import json
 import logging
+import queue
 import random
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -42,6 +45,8 @@ class GAConfig:
         mutation_rate: Per-gene mutation probability.
         elite_count: Number of best individuals carried forward.
         seed: Random seed for reproducibility.
+        max_workers: Number of parallel evaluation threads per generation.
+            1 = sequential (default). >1 enables ThreadPoolExecutor.
     """
 
     population_size: int = 10
@@ -51,6 +56,7 @@ class GAConfig:
     mutation_rate: float = 0.2
     elite_count: int = 1
     seed: int = 42
+    max_workers: int = 1
 
 
 @dataclass(frozen=True)
@@ -176,11 +182,31 @@ class GeneticAlgorithm:
         self._weights = fitness_weights
         self._output_dir = output_dir
         self._rng = random.Random(ga_config.seed)
+        self._max_workers = ga_config.max_workers
+
+        # Build a pool of ExperimentRunner instances — one per worker
+        # thread — so each thread has its own index cache and avoids
+        # TOCTOU races on the shared dict. All runners share the same
+        # ResultCache (disk-backed, lock-protected) and GeneratorWrapper
+        # (httpx is thread-safe). We access private attributes here
+        # intentionally, as this is within the same package.
+        self._runner_pool: queue.SimpleQueue | None = None
+        if self._max_workers > 1:
+            self._runner_pool = queue.SimpleQueue()
+            for _ in range(self._max_workers):
+                self._runner_pool.put(
+                    ExperimentRunner(
+                        wrapper=runner._wrapper,
+                        harness=runner._harness,
+                        cache=runner._cache,
+                        reranker=runner._reranker,
+                    )
+                )
 
     def _evaluate(
         self, config: MicroPilotConfig | FullV1Config,
     ) -> tuple[float, FitnessComponents]:
-        """Evaluate one config through the full pipeline."""
+        """Evaluate one config through the full pipeline (sequential path)."""
         run_id = generate_run_id(config)
         run_config = RunConfig(
             pipeline_config=config,
@@ -198,6 +224,84 @@ class GeneticAlgorithm:
             self._weights,
         )
         return components.fitness, components
+
+    def _evaluate_one(
+        self,
+        idx: int,
+        config: MicroPilotConfig | FullV1Config,
+        gen_idx: int,
+        gc: GAConfig,
+    ) -> tuple[int, float, FitnessComponents]:
+        """Evaluate one individual in a worker thread (parallel path).
+
+        Borrows a dedicated ExperimentRunner from the pool so each thread
+        has an independent index cache. Returns the individual's position
+        index so results can be reassembled in population order.
+
+        Exceptions are caught here — never propagated — so the
+        ThreadPoolExecutor never sees a failed future.
+
+        Args:
+            idx: Position of this individual in the population list.
+            config: Pipeline configuration to evaluate.
+            gen_idx: Current zero-based generation index (for logging).
+            gc: GAConfig (for logging totals).
+
+        Returns:
+            (idx, fitness, components). On exception, fitness=-1.0 and
+            components are zeroed.
+        """
+        # Shorten the default thread name for readable logs:
+        # "ThreadPoolExecutor-0_2" → "T2"
+        tname = threading.current_thread().name
+        tag = "T" + tname.rsplit("_", 1)[-1]
+
+        logger.info(
+            "[%s] Gen %d/%d, individual %d/%d",
+            tag,
+            gen_idx + 1,
+            gc.generations,
+            idx + 1,
+            gc.population_size,
+        )
+
+        assert self._runner_pool is not None
+        runner = self._runner_pool.get()
+        try:
+            run_id = generate_run_id(config)
+            run_config = RunConfig(
+                pipeline_config=config,
+                run_id=run_id,
+                qa_records=self._template.qa_records,
+                corpus_documents=self._template.corpus_documents,
+                cache_dir=self._template.cache_dir,
+                results_dir=self._template.results_dir,
+                model_id=self._template.model_id,
+                seed=self._template.seed,
+            )
+            result = runner.run(run_config)
+            components = compute_fitness_components(
+                result.aggregate_metrics, self._weights
+            )
+            return idx, components.fitness, components
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "[%s] Individual %d evaluation failed: %s",
+                tag,
+                idx + 1,
+                exc,
+            )
+            zero = FitnessComponents(
+                q_norm=0.0,
+                g_norm=0.0,
+                r_norm=0.0,
+                c_norm=0.0,
+                l_norm=0.0,
+                fitness=-1.0,
+            )
+            return idx, -1.0, zero
+        finally:
+            self._runner_pool.put(runner)
 
     def _init_population(
         self,
@@ -319,17 +423,40 @@ class GeneticAlgorithm:
             fitnesses: list[float] = []
             components_list: list[FitnessComponents] = []
 
-            for i, config in enumerate(population):
-                logger.info(
-                    "Gen %d/%d, individual %d/%d",
-                    gen_idx + 1,
-                    gc.generations,
-                    i + 1,
-                    gc.population_size,
-                )
-                fitness, comp = self._evaluate(config)
-                fitnesses.append(fitness)
-                components_list.append(comp)
+            if self._max_workers > 1:
+                # Parallel evaluation: submit all individuals concurrently,
+                # collect results in original population order.
+                results_map: dict[int, tuple[float, FitnessComponents]] = {}
+                with ThreadPoolExecutor(
+                    max_workers=self._max_workers
+                ) as executor:
+                    futures = [
+                        executor.submit(
+                            self._evaluate_one, i, config, gen_idx, gc
+                        )
+                        for i, config in enumerate(population)
+                    ]
+                    for future in as_completed(futures):
+                        i_done, fit, comp = future.result()
+                        results_map[i_done] = (fit, comp)
+                fitnesses = [
+                    results_map[i][0] for i in range(len(population))
+                ]
+                components_list = [
+                    results_map[i][1] for i in range(len(population))
+                ]
+            else:
+                for i, config in enumerate(population):
+                    logger.info(
+                        "Gen %d/%d, individual %d/%d",
+                        gen_idx + 1,
+                        gc.generations,
+                        i + 1,
+                        gc.population_size,
+                    )
+                    fitness, comp = self._evaluate(config)
+                    fitnesses.append(fitness)
+                    components_list.append(comp)
 
             best_idx = max(
                 range(len(fitnesses)),

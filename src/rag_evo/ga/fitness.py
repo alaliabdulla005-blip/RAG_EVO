@@ -98,6 +98,29 @@ def compute_fitness_components(
     )
 
 
+def legal_fitness_weights() -> FitnessWeights:
+    """Return fitness weights tuned for the legal QA track.
+
+    Legal documents require strict citation grounding: answers must
+    cite the specific contract clause that supports them. Generic QA
+    metrics (EM/F1) are lower for legal text because exact phrasing
+    is rare in generated answers. Grounding (w_g=0.40) is raised and
+    answer quality (w_q=0.30) is lowered compared to the general track.
+
+    Returns:
+        FitnessWeights configured for legal-track experiments.
+    """
+    return FitnessWeights(
+        w_q=0.30,
+        w_g=0.40,
+        w_r=0.20,
+        w_c=0.05,
+        w_l=0.05,
+        token_budget=32_500,
+        latency_budget_ms=5000.0,
+    )
+
+
 def compute_fitness(
     aggregate: AggregateMetrics,
     weights: FitnessWeights,
