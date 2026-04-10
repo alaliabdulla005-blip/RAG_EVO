@@ -162,6 +162,22 @@ class EvaluationHarness:
         per_record = [self.evaluate_result(r) for r in results]
         n = len(per_record)
 
+        if n == 0:
+            return [], AggregateMetrics(
+                num_records=0,
+                mean_em=0.0,
+                mean_f1=0.0,
+                mean_citation_precision=0.0,
+                mean_citation_recall=0.0,
+                mean_citation_f1=0.0,
+                mean_retrieval_recall_at_k=0.0,
+                mean_input_tokens=0.0,
+                mean_output_tokens=0.0,
+                mean_latency_ms=0.0,
+                total_input_tokens=0,
+                total_output_tokens=0,
+            )
+
         aggregate = AggregateMetrics(
             num_records=n,
             mean_em=sum(m.em for m in per_record) / n,
