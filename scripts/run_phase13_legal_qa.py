@@ -82,7 +82,7 @@ ga_config = GAConfig(
     mutation_rate=0.2,
     elite_count=1,
     seed=42,
-    max_workers=2,
+    max_workers=1,
 )
 
 output_dir = paths.results / "phase13" / "legal_qa"
