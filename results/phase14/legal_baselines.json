@@ -1,0 +1,67 @@
+{
+  "track": "legal",
+  "n_records": 50,
+  "fitness_weights": "legal (w_g=0.40)",
+  "systems": [
+    {
+      "name": "Direct LLM",
+      "config": "no retrieval, zero-shot, temperature=0.0",
+      "metrics": {
+        "mean_em": 0.0,
+        "mean_f1": 0.043299201209770884,
+        "mean_citation_precision": 0.0,
+        "mean_citation_recall": 0.0,
+        "mean_citation_f1": 0.0,
+        "mean_retrieval_recall_at_k": 0.0,
+        "mean_input_tokens": 103.92,
+        "mean_latency_ms": 873.6246258381288
+      },
+      "fitness": -0.0037403320492961807
+    },
+    {
+      "name": "Naive RAG",
+      "config": "BM25, chunk=256, overlap=0, top_k=5, zero-shot, temp=0.0",
+      "metrics": {
+        "mean_em": 0.0,
+        "mean_f1": 0.10907209199872567,
+        "mean_citation_precision": 0.05,
+        "mean_citation_recall": 0.06,
+        "mean_citation_f1": 0.05333333333333333,
+        "mean_retrieval_recall_at_k": 0.14,
+        "mean_input_tokens": 1764.94,
+        "mean_latency_ms": 581.0366492171306
+      },
+      "fitness": 0.02624459444077972
+    },
+    {
+      "name": "Conservative manual RAG",
+      "config": "BM25, chunk=256, overlap=0, top_k=3, zero-shot, temp=0.0",
+      "metrics": {
+        "mean_em": 0.0,
+        "mean_f1": 0.12243729095537642,
+        "mean_citation_precision": 0.0,
+        "mean_citation_recall": 0.0,
+        "mean_citation_f1": 0.0,
+        "mean_retrieval_recall_at_k": 0.02,
+        "mean_input_tokens": 1094.76,
+        "mean_latency_ms": 651.7528866592329
+      },
+      "fitness": -0.0157863415799794
+    },
+    {
+      "name": "GA-optimised legal",
+      "config": "BM25, chunk=384, overlap=0.2, top_k=20, chain-of-thought, temp=1.0",
+      "metrics": {
+        "mean_em": 0.0,
+        "mean_f1": 0.12968141759179364,
+        "mean_citation_precision": 0.048008658008658,
+        "mean_citation_recall": 0.12,
+        "mean_citation_f1": 0.06166666666666667,
+        "mean_retrieval_recall_at_k": 0.94,
+        "mean_input_tokens": 8385.92,
+        "mean_latency_ms": 1662.1461466152687
+      },
+      "fitness": 0.18494963047805213
+    }
+  ]
+}

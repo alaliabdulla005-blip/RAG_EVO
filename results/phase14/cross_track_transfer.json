@@ -1,0 +1,54 @@
+{
+  "transfers": [
+    {
+      "config_source": "Phase 12 General-QA GA best",
+      "evaluated_on": "legal",
+      "config": {
+        "chunk_size": 512,
+        "overlap": 0.0,
+        "top_k": 19,
+        "prompt_strategy": "chain-of-thought",
+        "temperature": 0.6743266807244299,
+        "citations_required": true,
+        "top_p": 1.0
+      },
+      "metrics": {
+        "mean_em": 0.0,
+        "mean_f1": 0.12612903658586105,
+        "mean_citation_precision": 0.04515151515151516,
+        "mean_citation_recall": 0.16,
+        "mean_citation_f1": 0.06583882783882783,
+        "mean_retrieval_recall_at_k": 0.94,
+        "mean_input_tokens": 8721.5,
+        "mean_latency_ms": 1627.130048382096
+      },
+      "fitness": 0.1859029416274685,
+      "fitness_weights": "legal (w_g=0.40)"
+    },
+    {
+      "config_source": "Phase 13 Legal GA best",
+      "evaluated_on": "general",
+      "config": {
+        "chunk_size": 384,
+        "overlap": 0.2,
+        "top_k": 20,
+        "prompt_strategy": "chain-of-thought",
+        "temperature": 1.0,
+        "citations_required": true,
+        "top_p": 1.0
+      },
+      "metrics": {
+        "mean_em": 0.0,
+        "mean_f1": 0.05098249535721394,
+        "mean_citation_precision": 0.41904761904761906,
+        "mean_citation_recall": 0.34,
+        "mean_citation_f1": 0.3555555555555555,
+        "mean_retrieval_recall_at_k": 0.73,
+        "mean_input_tokens": 2627.74,
+        "mean_latency_ms": 702.2538174968213
+      },
+      "fitness": 0.21603712663458405,
+      "fitness_weights": "general (w_q=0.40)"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "system": "iterative_rag",
+  "config": {
+    "chunk_size": 384,
+    "overlap": 0.3,
+    "top_k_per_round": 10,
+    "prompt_strategy": "chain-of-thought",
+    "temperature": 0.0,
+    "rounds": 2
+  },
+  "metrics": {
+    "mean_em": 0.0,
+    "mean_f1": 0.03377269244527652,
+    "mean_citation_precision": 0.3299999999999999,
+    "mean_citation_recall": 0.33,
+    "mean_citation_f1": 0.308,
+    "mean_retrieval_recall_at_k": 0.62,
+    "mean_input_tokens": 2021.54,
+    "mean_latency_ms": 4416.810552553507
+  },
+  "fitness": 0.13574097145257552,
+  "n_records": 50
+}

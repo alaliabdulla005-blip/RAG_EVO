@@ -1,0 +1,52 @@
+{
+  "ablation": "mutation_rate",
+  "values_tested": [
+    0.1,
+    0.2,
+    0.4
+  ],
+  "results": [
+    {
+      "mutation_rate": 0.1,
+      "best_fitness": 0.23251369465097163,
+      "final_mean_fitness": 0.21709281028409305,
+      "best_config": {
+        "chunk_size": 256,
+        "overlap": 0.2,
+        "top_k": 19,
+        "prompt_strategy": "chain-of-thought",
+        "temperature": 0.03178267948178359,
+        "citations_required": true,
+        "top_p": 1.0
+      }
+    },
+    {
+      "mutation_rate": 0.2,
+      "best_fitness": 0.23111887637115933,
+      "final_mean_fitness": 0.21210136541324803,
+      "best_config": {
+        "chunk_size": 256,
+        "overlap": 0.3,
+        "top_k": 19,
+        "prompt_strategy": "chain-of-thought",
+        "temperature": 0.22194157712011056,
+        "citations_required": true,
+        "top_p": 1.0
+      }
+    },
+    {
+      "mutation_rate": 0.4,
+      "best_fitness": 0.23575808850864916,
+      "final_mean_fitness": 0.21853658071447715,
+      "best_config": {
+        "chunk_size": 256,
+        "overlap": 0.0,
+        "top_k": 19,
+        "prompt_strategy": "chain-of-thought",
+        "temperature": 0.03178267948178359,
+        "citations_required": true,
+        "top_p": 1.0
+      }
+    }
+  ]
+}

@@ -63,6 +63,31 @@ results/configs/phase8_verify/*
 !results/configs/phase8_verify/micro_default.json
 !results/configs/phase8_verify/full_default.json
 !results/runs/
+!results/figures/
+results/figures/*
+!results/figures/*.png
+!results/ablations/
+results/ablations/*
+!results/ablations/*.json
+!results/phase12/
+results/phase12/*
+!results/phase12/**/*.json
+results/phase12/**/*
+!results/phase12/general_qa/
+!results/phase12/general_qa/*.json
+!results/phase13/
+results/phase13/*
+!results/phase13/**/*.json
+results/phase13/**/*
+!results/phase13/legal_qa/
+!results/phase13/legal_qa/*.json
+!results/phase14/
+results/phase14/*
+!results/phase14/*.json
+!results/phase14/*.csv
+!results/phase15/
+results/phase15/*
+!results/phase15/*.json
 
 # MyPy
 .mypy_cache/
