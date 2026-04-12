@@ -39,6 +39,65 @@ ruff check . --fix
 
 ---
 
+## Reproducing dissertation results
+
+All evaluation scripts require:
+- Package installed in dev mode (`pip install -e .`)
+- `.env` with `INFERENCE_PROVIDER=sambanova` and `SAMBANOVA_API_KEY`
+- Debug subsets present in `data/processed/` (150 records each)
+
+### Development set baselines (records 0-49)
+
+```bash
+python scripts/run_baseline_comparison.py
+python scripts/run_legal_baselines.py
+python scripts/run_iterative_rag.py
+python scripts/run_iterative_rag_legal.py
+python scripts/run_cross_track_transfer.py
+```
+
+### Held-out evaluation (records 50-149)
+
+```bash
+python scripts/run_held_out_complete.py
+```
+
+### GA search (records 0-49)
+
+```bash
+python scripts/run_phase12_general_qa.py
+python scripts/run_phase13_legal_qa.py
+```
+
+### Ablations
+
+```bash
+python scripts/run_seed_stability.py
+python scripts/run_mutation_ablation.py
+python scripts/run_population_ablation.py
+python scripts/run_temperature_ablation_legal.py
+```
+
+### Figures and tables
+
+```bash
+python scripts/generate_dissertation_figures.py
+python scripts/generate_cross_track_table.py
+```
+
+### Output locations
+
+| Script | Output |
+|--------|--------|
+| `run_baseline_comparison.py` | `results/ablations/baseline_comparison.json` |
+| `run_legal_baselines.py` | `results/phase14/legal_baselines.json` |
+| `run_iterative_rag.py` | `results/ablations/iterative_rag.json` |
+| `run_iterative_rag_legal.py` | `results/phase13/iterative_rag_legal.json` |
+| `run_cross_track_transfer.py` | `results/phase14/cross_track_transfer.json` |
+| `run_held_out_complete.py` | `results/phase15/held_out_complete.json` |
+
+---
+
 ## Project structure
 
 ```
