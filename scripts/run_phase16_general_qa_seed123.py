@@ -1,6 +1,13 @@
 """Phase 16 — General-QA GA experiment, seed 123.
 
-8-gene FullV2Config chromosome, pop=50, gen=100, DeepInfra provider.
+Phase 16 search space: 6 active genes (chunk_size, overlap, top_k,
+prompt_strategy, temperature, max_output_tokens). retriever_type
+fixed to BM25 and reranker_enabled fixed to False due to evaluation
+time constraints on 8GB RAM with 100 dev records. Dense retrieval
+and reranking are proposed as future work in Section 5.2.
+
+8-gene FullV2Config chromosome (2 genes fixed, 6 searched),
+pop=50, gen=100, DeepInfra provider.
 
 Checkpoint/resume is automatic: if results/phase16/general_qa/seed_123/gen_NNN/
 directories exist the GA resumes from the latest saved state.
@@ -43,28 +50,13 @@ logging.basicConfig(
 
 paths = get_project_paths()
 
-# ── Verify all 48 dense indexes exist ──────────────────────────────────────
-_INDEX_ROOT = Path("data/indexes")
-_CHUNK_SIZES = [256, 384, 448, 512]
-_OVERLAPS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
-_TRACKS = ["general_qa", "legal"]
-_missing = []
-for _cs in _CHUNK_SIZES:
-    for _ov in _OVERLAPS:
-        for _tr in _TRACKS:
-            _d = _INDEX_ROOT / f"dense_{_cs}_{_ov}_{_tr}"
-            if not _d.exists() or not any(_d.iterdir()):
-                _missing.append(str(_d))
-if _missing:
-    print("ERROR: Missing dense indexes detected.")
-    for _m in _missing[:10]:
-        print(f"  {_m}")
-    if len(_missing) > 10:
-        print(f"  ... and {len(_missing) - 10} more")
-    print("\nRun: python scripts/build_dense_indexes.py")
-    print("Then restart this script.")
+# ── Verify BM25 corpus exists ──────────────────────────────────────────────
+_CORPUS_DIR = Path("data/processed/hotpotqa_debug")
+if not _CORPUS_DIR.exists() or not any(_CORPUS_DIR.iterdir()):
+    print(f"ERROR: BM25 corpus not found at {_CORPUS_DIR}")
+    print("Run the data processing pipeline before starting this experiment.")
     sys.exit(1)
-print("Dense index check: all 48 indexes present.")
+print(f"BM25 corpus check: OK ({_CORPUS_DIR}).")
 
 # ── Banner ──────────────────────────────────────────────────────────────────
 print("=" * 65)

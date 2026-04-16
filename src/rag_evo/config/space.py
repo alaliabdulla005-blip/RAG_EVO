@@ -94,19 +94,19 @@ class SearchSpace:
             A valid configuration sampled from the search space.
         """
         if self._version == "full_v2":
-            retriever_type = rng.choice(RETRIEVER_TYPES_V2)
-            if retriever_type == "dense":
-                overlap = rng.choice(DENSE_OVERLAP_VALUES_V2)
-            else:
-                overlap = rng.uniform(*OVERLAP_RANGE_V2)
+            # Phase 16 search restricts retriever_type to BM25 and
+            # reranker_enabled to False. Dense retrieval and reranking
+            # remain valid schema values but are not sampled here due
+            # to evaluation-time constraints on 8 GB RAM with 100 dev
+            # records. Future work (Section 5.2) will re-enable them.
             return FullV2Config(
                 chunk_size=rng.choice(CHUNK_SIZE_VALUES_V2),
-                overlap=overlap,
+                overlap=rng.uniform(*OVERLAP_RANGE_V2),
                 top_k=rng.randint(*TOP_K_RANGE),
                 prompt_strategy=rng.choice(PROMPT_STRATEGIES_V2),
                 temperature=rng.uniform(*TEMPERATURE_RANGE),
-                retriever_type=retriever_type,
-                reranker_enabled=rng.choice([True, False]),
+                retriever_type="BM25",
+                reranker_enabled=False,
                 max_output_tokens=rng.randint(
                     *MAX_OUTPUT_TOKENS_RANGE_V2
                 ),

@@ -171,13 +171,19 @@ def mutate(
             )
         elif gene == "retriever_type":
             if is_v2:
-                d[gene] = (
-                    "dense" if d[gene] == "BM25" else "BM25"
-                )
+                # Phase 16 restriction: dense retrieval disabled.
+                # Gene remains in chromosome but mutation is a no-op
+                # that always produces BM25. See Section 5.2.
+                d[gene] = "BM25"
             else:
                 d[gene] = rng.choice(RETRIEVER_TYPES)
         elif gene == "reranker_enabled":
-            d[gene] = not d[gene]
+            if is_v2:
+                # Phase 16 restriction: reranker disabled.
+                # Mutation always produces False. See Section 5.2.
+                d[gene] = False
+            else:
+                d[gene] = not d[gene]
         elif gene == "max_output_tokens":
             if is_v2:
                 step = rng.choice([-32, -16, 16, 32])
