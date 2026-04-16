@@ -9,14 +9,12 @@ from pathlib import Path
 from rag_evo.data.schemas import CorpusDocument
 from rag_evo.retrieval.bm25_retriever import BM25Retriever, RetrievalResult
 from rag_evo.retrieval.chunker import chunk_corpus
-from rag_evo.retrieval.dense_retriever import (
-    DenseRetriever,
-    load_dense_index,
-)
+from rag_evo.retrieval.dense_retriever import load_dense_index
 from rag_evo.retrieval.hybrid_retriever import HybridRetriever
 from rag_evo.retrieval.reranker import Reranker
 
 _VALID_TYPES = {"BM25", "dense", "hybrid"}
+_DEFAULT_INDEX_ROOT = Path("data/indexes")
 
 
 @dataclass(frozen=True)
@@ -54,6 +52,8 @@ def build_retriever(
     documents: list[CorpusDocument],
     reranker: Reranker | None = None,
     index_dir: Path | None = None,
+    track: str = "general_qa",
+    index_root: Path = _DEFAULT_INDEX_ROOT,
 ) -> Callable[[str, int], RetrievalResult]:
     """Build and return a retriever callable from config and documents.
 
@@ -61,10 +61,16 @@ def build_retriever(
         config: RetrieverConfig specifying retriever type and params.
         documents: List of CorpusDocument objects to chunk and index.
         reranker: Optional Reranker instance.
-        index_dir: Optional path to a pre-built dense FAISS index
-            directory. When provided and retriever_type is "dense",
-            the index is loaded from disk instead of building from
-            scratch. Ignored for non-dense retriever types.
+        index_dir: Optional explicit path to a pre-built dense FAISS
+            index directory. When provided and retriever_type is
+            "dense", the index is loaded from disk instead of being
+            resolved from ``track``. Ignored for non-dense types.
+        track: Track name used to resolve the pre-built dense index
+            path when ``index_dir`` is not provided. Valid values:
+            ``"general_qa"`` (default) and ``"legal"``. Path format:
+            ``{index_root}/dense_{chunk_size}_{overlap}_{track}``.
+        index_root: Root directory containing pre-built dense
+            indexes. Defaults to ``Path("data/indexes")``.
 
     Returns:
         Callable with signature retrieve(query, top_k) -> RetrievalResult.
@@ -72,13 +78,25 @@ def build_retriever(
     Raises:
         ValueError: If reranker_enabled is True but reranker is None.
         ValueError: If retriever_type is unknown.
+        RuntimeError: If retriever_type is "dense" and the resolved
+            pre-built index directory does not exist.
     """
     if config.reranker_enabled and reranker is None:
         raise ValueError(
             "reranker_enabled=True requires a Reranker instance."
         )
 
-    if index_dir is not None and config.retriever_type == "dense":
+    if config.retriever_type == "dense":
+        if index_dir is None:
+            index_dir = (
+                index_root
+                / f"dense_{config.chunk_size}_{config.overlap}_{track}"
+            )
+        if not index_dir.exists():
+            raise RuntimeError(
+                f"Dense index not found: {index_dir}\n"
+                "Run: python scripts/build_dense_indexes.py"
+            )
         base = load_dense_index(index_dir)
     else:
         chunks = chunk_corpus(
@@ -87,8 +105,6 @@ def build_retriever(
 
         if config.retriever_type == "BM25":
             base = BM25Retriever(chunks)
-        elif config.retriever_type == "dense":
-            base = DenseRetriever(chunks, model_name=config.dense_model_name)
         elif config.retriever_type == "hybrid":
             base = HybridRetriever(
                 chunks,

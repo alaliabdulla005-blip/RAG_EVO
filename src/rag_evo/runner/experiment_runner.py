@@ -183,24 +183,6 @@ class ExperimentRunner:
             adapted_retriever = self._index_cache[index_key]
             logger.info("Index cache hit for %s", index_key)
         else:
-            # Construct index_dir for dense if track/root available
-            index_dir = None
-            if (
-                retriever_type == "dense"
-                and run_config.track is not None
-                and run_config.index_root is not None
-            ):
-                index_dir = (
-                    run_config.index_root
-                    / f"dense_{pc.chunk_size}_{snapped_overlap}"
-                    f"_{run_config.track}"
-                )
-                if not index_dir.exists():
-                    raise RuntimeError(
-                        f"Dense index not found: {index_dir}\n"
-                        "Run: python scripts/build_dense_indexes.py"
-                    )
-
             retriever_cfg = RetrieverConfig(
                 retriever_type=retriever_type,
                 chunk_size=pc.chunk_size,
@@ -208,13 +190,19 @@ class ExperimentRunner:
                 top_k=pc.top_k,
                 reranker_enabled=reranker_enabled,
             )
+            build_kwargs: dict = {
+                "reranker": (
+                    self._reranker if reranker_enabled else None
+                ),
+            }
+            if retriever_type == "dense" and run_config.track is not None:
+                build_kwargs["track"] = run_config.track
+                if run_config.index_root is not None:
+                    build_kwargs["index_root"] = run_config.index_root
             retrieve_fn = build_retriever(
                 retriever_cfg,
                 run_config.corpus_documents,
-                reranker=(
-                    self._reranker if reranker_enabled else None
-                ),
-                index_dir=index_dir,
+                **build_kwargs,
             )
             adapted_retriever = _RetrievableAdapter(retrieve_fn)
             self._index_cache[index_key] = adapted_retriever
