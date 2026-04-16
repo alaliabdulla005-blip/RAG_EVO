@@ -13,6 +13,7 @@ Run from project root:
 
 import json
 import logging
+import os
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -115,7 +116,7 @@ ga_config = GAConfig(
     mutation_rate=0.2,
     elite_count=1,
     seed=SEED,
-    max_workers=1,
+    max_workers=int(os.environ.get("EVAL_WORKERS", "4")),
 )
 
 output_dir = paths.results / "phase16" / "general_qa" / f"seed_{SEED}"
