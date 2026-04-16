@@ -1,0 +1,260 @@
+{
+  "evaluation_protocol": "held-out test set, records 50-149, n=100",
+  "seed": 42,
+  "general_qa": {
+    "weights": "general (w_q=0.40)",
+    "n_records": 100,
+    "record_range": "50-149",
+    "systems": [
+      {
+        "name": "Direct LLM",
+        "config": "no retrieval, zero-shot, temperature=0.0",
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.017896325896325897,
+          "mean_citation_precision": 0.0,
+          "mean_citation_recall": 0.0,
+          "mean_citation_f1": 0.0,
+          "mean_retrieval_recall_at_k": 0.0,
+          "mean_input_tokens": 121.87,
+          "mean_latency_ms": 1483.6659412528388
+        },
+        "fitness": -0.0264273598232288
+      },
+      {
+        "name": "Naive RAG",
+        "config": {
+          "chunk_size": 256,
+          "overlap": 0.0,
+          "top_k": 5,
+          "prompt_strategy": "zero-shot",
+          "temperature": 0.0
+        },
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.07552075407458635,
+          "mean_citation_precision": 0.33,
+          "mean_citation_recall": 0.2,
+          "mean_citation_f1": 0.24333333333333343,
+          "mean_retrieval_recall_at_k": 0.515,
+          "mean_input_tokens": 680.7,
+          "mean_latency_ms": 2161.9706504722126
+        },
+        "fitness": 0.13458859512511245
+      },
+      {
+        "name": "Conservative manual RAG",
+        "config": {
+          "chunk_size": 256,
+          "overlap": 0.0,
+          "top_k": 3,
+          "prompt_strategy": "zero-shot",
+          "temperature": 0.0
+        },
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.05354660674762421,
+          "mean_citation_precision": 0.25666666666666665,
+          "mean_citation_recall": 0.165,
+          "mean_citation_f1": 0.19466666666666668,
+          "mean_retrieval_recall_at_k": 0.45,
+          "mean_input_tokens": 446.75,
+          "mean_latency_ms": 1770.7262087846175
+        },
+        "fitness": 0.10211138061120352
+      },
+      {
+        "name": "Iterative RAG",
+        "config": {
+          "chunk_size": 384,
+          "overlap": 0.3,
+          "top_k_per_round": 10,
+          "prompt_strategy": "chain-of-thought",
+          "temperature": 0.0,
+          "rounds": 2
+        },
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.04622278318310048,
+          "mean_citation_precision": 0.342,
+          "mean_citation_recall": 0.28,
+          "mean_citation_f1": 0.29202380952380963,
+          "mean_retrieval_recall_at_k": 0.57,
+          "mean_input_tokens": 1799.06,
+          "mean_latency_ms": 2802.8602517710533
+        },
+        "fitness": 0.14206765361267257
+      },
+      {
+        "name": "GA-optimised (Phase 12)",
+        "config": {
+          "chunk_size": 512,
+          "overlap": 0.0,
+          "top_k": 19,
+          "prompt_strategy": "chain-of-thought",
+          "temperature": 0.6743266807244299
+        },
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.062463397574456805,
+          "mean_citation_precision": 0.32916666666666666,
+          "mean_citation_recall": 0.26,
+          "mean_citation_f1": 0.28,
+          "mean_retrieval_recall_at_k": 0.67,
+          "mean_input_tokens": 2516.45,
+          "mean_latency_ms": 4278.801654933486
+        },
+        "fitness": 0.1501973424804479
+      },
+      {
+        "name": "Phase 13 Legal\u2192General transfer",
+        "config": {
+          "chunk_size": 384,
+          "overlap": 0.2,
+          "top_k": 20,
+          "prompt_strategy": "chain-of-thought",
+          "temperature": 1.0
+        },
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.05433505566988701,
+          "mean_citation_precision": 0.3550092764378479,
+          "mean_citation_recall": 0.3010204081632653,
+          "mean_citation_f1": 0.3097574194512971,
+          "mean_retrieval_recall_at_k": 0.6683673469387755,
+          "mean_input_tokens": 2660.1326530612246,
+          "mean_latency_ms": 1989.3351956116207
+        },
+        "fitness": 0.17844136553498283
+      }
+    ]
+  },
+  "legal": {
+    "weights": "legal (w_g=0.40)",
+    "n_records": 100,
+    "record_range": "50-149",
+    "systems": [
+      {
+        "name": "Direct LLM",
+        "config": "no retrieval, zero-shot, temperature=0.0",
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.03688879712875396,
+          "mean_citation_precision": 0.0,
+          "mean_citation_recall": 0.0,
+          "mean_citation_f1": 0.0,
+          "mean_retrieval_recall_at_k": 0.0,
+          "mean_input_tokens": 103.77,
+          "mean_latency_ms": 1363.3995874016546
+        },
+        "fitness": -0.018531972120005746
+      },
+      {
+        "name": "Naive RAG",
+        "config": {
+          "chunk_size": 256,
+          "overlap": 0.0,
+          "top_k": 5,
+          "prompt_strategy": "zero-shot",
+          "temperature": 0.0
+        },
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.09986006287692384,
+          "mean_citation_precision": 0.0025,
+          "mean_citation_recall": 0.01,
+          "mean_citation_f1": 0.004,
+          "mean_retrieval_recall_at_k": 0.01,
+          "mean_input_tokens": 1742.47,
+          "mean_latency_ms": 1162.490827536676
+        },
+        "fitness": -0.02806688941228961
+      },
+      {
+        "name": "Conservative manual RAG",
+        "config": {
+          "chunk_size": 256,
+          "overlap": 0.0,
+          "top_k": 3,
+          "prompt_strategy": "zero-shot",
+          "temperature": 0.0
+        },
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.1172196139928413,
+          "mean_citation_precision": 0.005,
+          "mean_citation_recall": 0.01,
+          "mean_citation_f1": 0.006666666666666666,
+          "mean_retrieval_recall_at_k": 0.01,
+          "mean_input_tokens": 1074.21,
+          "mean_latency_ms": 1562.0704024715815
+        },
+        "fitness": -0.025788153160196763
+      },
+      {
+        "name": "Iterative RAG",
+        "config": {
+          "chunk_size": 384,
+          "overlap": 0.3,
+          "top_k_per_round": 10,
+          "prompt_strategy": "chain-of-thought",
+          "temperature": 0.0,
+          "rounds": 2
+        },
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.09028566457964439,
+          "mean_citation_precision": 0.00375,
+          "mean_citation_recall": 0.02,
+          "mean_citation_f1": 0.006222222222222223,
+          "mean_retrieval_recall_at_k": 0.11,
+          "mean_input_tokens": 7664.83,
+          "mean_latency_ms": 4820.034159186762
+        },
+        "fitness": -0.04662575332908542
+      },
+      {
+        "name": "GA-optimised (Phase 13 Legal)",
+        "config": {
+          "chunk_size": 384,
+          "overlap": 0.2,
+          "top_k": 20,
+          "prompt_strategy": "chain-of-thought",
+          "temperature": 1.0
+        },
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.10976564930162544,
+          "mean_citation_precision": 0.03596374576766733,
+          "mean_citation_recall": 0.15151515151515152,
+          "mean_citation_f1": 0.054769921436588105,
+          "mean_retrieval_recall_at_k": 0.6666666666666666,
+          "mean_input_tokens": 8384.737373737375,
+          "mean_latency_ms": 2624.381071592756
+        },
+        "fitness": 0.11192718598252867
+      },
+      {
+        "name": "Phase 12 General\u2192Legal transfer",
+        "config": {
+          "chunk_size": 512,
+          "overlap": 0.0,
+          "top_k": 19,
+          "prompt_strategy": "chain-of-thought",
+          "temperature": 0.6743266807244299
+        },
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.11074088399214489,
+          "mean_citation_precision": 0.014294172932330826,
+          "mean_citation_recall": 0.1,
+          "mean_citation_f1": 0.024312834224598928,
+          "mean_retrieval_recall_at_k": 0.72,
+          "mean_input_tokens": 8705.8,
+          "mean_latency_ms": 2255.1209487428423
+        },
+        "fitness": 0.11439618940005461
+      }
+    ]
+  }
+}

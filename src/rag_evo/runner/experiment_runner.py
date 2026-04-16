@@ -17,12 +17,15 @@ import hashlib
 import json
 import logging
 import time
+from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 
 from rag_evo.cache.cache import ResultCache, make_cache_key
-from rag_evo.config.schema import FullV1Config, MicroPilotConfig
+from rag_evo.config.schema import FullV1Config, FullV2Config, MicroPilotConfig
+from rag_evo.config.space import DENSE_OVERLAP_VALUES_V2
+from rag_evo.config.validators import snap_to_nearest
 from rag_evo.evaluation.harness import AggregateMetrics, EvaluationHarness
 from rag_evo.generation.config import DecodingConfig
 from rag_evo.generation.wrapper import GeneratorWrapper
@@ -32,8 +35,12 @@ from rag_evo.retrieval.retriever_factory import RetrieverConfig, build_retriever
 
 logger = logging.getLogger(__name__)
 
+_INDEX_CACHE_MAX = 6
 
-def generate_run_id(config: MicroPilotConfig | FullV1Config) -> str:
+
+def generate_run_id(
+    config: MicroPilotConfig | FullV1Config | FullV2Config,
+) -> str:
     """Generate a unique run ID incorporating config signature.
 
     Format: {YYYYMMDD}_{HHMMSS}_{config_hash_8chars}
@@ -83,7 +90,7 @@ class RunConfig:
         seed: Random seed for reproducibility.
     """
 
-    pipeline_config: MicroPilotConfig | FullV1Config
+    pipeline_config: MicroPilotConfig | FullV1Config | FullV2Config
     run_id: str
     qa_records: list
     corpus_documents: list
@@ -91,6 +98,8 @@ class RunConfig:
     results_dir: Path
     model_id: str
     seed: int = 42
+    track: str | None = None
+    index_root: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -109,7 +118,7 @@ class RunResult:
     """
 
     run_id: str
-    pipeline_config: MicroPilotConfig | FullV1Config
+    pipeline_config: MicroPilotConfig | FullV1Config | FullV2Config
     aggregate_metrics: AggregateMetrics
     per_record_metrics: list
     cache_hits: int
@@ -139,7 +148,9 @@ class ExperimentRunner:
         self._harness = harness
         self._cache = cache
         self._reranker = reranker
-        self._index_cache: dict[tuple, _RetrievableAdapter] = {}
+        self._index_cache: OrderedDict[tuple, _RetrievableAdapter] = (
+            OrderedDict()
+        )
 
     def run(self, run_config: RunConfig) -> RunResult:
         """Evaluate one pipeline configuration on all QA records.
@@ -157,16 +168,43 @@ class ExperimentRunner:
         reranker_enabled = getattr(pc, "reranker_enabled", False)
         max_output_tokens = getattr(pc, "max_output_tokens", 256)
 
-        index_key = (pc.chunk_size, pc.overlap, retriever_type)
+        # Snap overlap for dense retrieval (path + cache key consistency)
+        if retriever_type == "dense":
+            snapped_overlap = snap_to_nearest(
+                pc.overlap, DENSE_OVERLAP_VALUES_V2
+            )
+        else:
+            snapped_overlap = pc.overlap
+
+        index_key = (pc.chunk_size, snapped_overlap, retriever_type)
 
         if index_key in self._index_cache:
+            self._index_cache.move_to_end(index_key)
             adapted_retriever = self._index_cache[index_key]
             logger.info("Index cache hit for %s", index_key)
         else:
+            # Construct index_dir for dense if track/root available
+            index_dir = None
+            if (
+                retriever_type == "dense"
+                and run_config.track is not None
+                and run_config.index_root is not None
+            ):
+                index_dir = (
+                    run_config.index_root
+                    / f"dense_{pc.chunk_size}_{snapped_overlap}"
+                    f"_{run_config.track}"
+                )
+                if not index_dir.exists():
+                    raise RuntimeError(
+                        f"Dense index not found: {index_dir}\n"
+                        "Run: python scripts/build_dense_indexes.py"
+                    )
+
             retriever_cfg = RetrieverConfig(
                 retriever_type=retriever_type,
                 chunk_size=pc.chunk_size,
-                overlap=pc.overlap,
+                overlap=snapped_overlap,
                 top_k=pc.top_k,
                 reranker_enabled=reranker_enabled,
             )
@@ -176,9 +214,12 @@ class ExperimentRunner:
                 reranker=(
                     self._reranker if reranker_enabled else None
                 ),
+                index_dir=index_dir,
             )
             adapted_retriever = _RetrievableAdapter(retrieve_fn)
             self._index_cache[index_key] = adapted_retriever
+            if len(self._index_cache) > _INDEX_CACHE_MAX:
+                self._index_cache.popitem(last=False)
             logger.info("Index cache miss, built for %s", index_key)
 
         decoding = DecodingConfig(

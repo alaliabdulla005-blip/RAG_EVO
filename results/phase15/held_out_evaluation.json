@@ -1,0 +1,179 @@
+{
+  "generalisation_threshold": 0.15,
+  "n_held_out_per_track": 100,
+  "record_range": "50-149",
+  "limitations": [
+    "Small development set (50 records) used for both GA search and final evaluation \u2014 no held-out test set during optimisation. Evaluation noise CV~0.087.",
+    "Temperature=1.0 for legal best config is potentially a noise artefact from stochastic evaluation on 50 records. Temperature ablation (Task 1) investigates this.",
+    "BM25-only retrieval throughout v1. Dense and hybrid retrieval are not explored. Retrieval recall on General-QA saturates at 0.730 \u2014 a BM25 ceiling.",
+    "Citation format mismatch on legal data: CUAD answers do not naturally elicit [DOC_N] citation markers, causing CitF1=0.123 despite RetR@5=0.940.",
+    "Legal track GA interrupted by SambaNova 20M/day quota exhaustion. Resumed on new account \u2014 results valid but infrastructure instability documented.",
+    "5-gene search space only (chunk_size, overlap, top_k, prompt_strategy, temperature). retriever_type, reranker_enabled, max_output_tokens not searched in v1."
+  ],
+  "general_qa": {
+    "weights": "general (w_q=0.40)",
+    "results": [
+      {
+        "name": "Naive RAG",
+        "config": {
+          "chunk_size": 256,
+          "overlap": 0.0,
+          "top_k": 5,
+          "prompt_strategy": "zero-shot",
+          "temperature": 0.0,
+          "citations_required": true,
+          "top_p": 1.0
+        },
+        "dev_fitness": 0.107,
+        "held_out_fitness": 0.1486579841837387,
+        "generalisation_gap": 0.3893269549882123,
+        "generalises": false,
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.07552075407458635,
+          "mean_citation_precision": 0.33,
+          "mean_citation_recall": 0.2,
+          "mean_citation_f1": 0.24333333333333343,
+          "mean_retrieval_recall_at_k": 0.515,
+          "mean_input_tokens": 680.7,
+          "mean_latency_ms": 755.0317446095869
+        }
+      },
+      {
+        "name": "Phase 12 GA best",
+        "config": {
+          "chunk_size": 512,
+          "overlap": 0.0,
+          "top_k": 19,
+          "prompt_strategy": "chain-of-thought",
+          "temperature": 0.6743266807244299,
+          "citations_required": true,
+          "top_p": 1.0
+        },
+        "dev_fitness": 0.24,
+        "held_out_fitness": 0.17834648162084676,
+        "generalisation_gap": 0.25688965991313845,
+        "generalises": false,
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.05367896466716889,
+          "mean_citation_precision": 0.30833333333333335,
+          "mean_citation_recall": 0.265,
+          "mean_citation_f1": 0.27233333333333337,
+          "mean_retrieval_recall_at_k": 0.67,
+          "mean_input_tokens": 2516.45,
+          "mean_latency_ms": 882.5104246020783
+        }
+      },
+      {
+        "name": "Phase 13 Legal transfer",
+        "config": {
+          "chunk_size": 384,
+          "overlap": 0.2,
+          "top_k": 20,
+          "prompt_strategy": "chain-of-thought",
+          "temperature": 1.0,
+          "citations_required": true,
+          "top_p": 1.0
+        },
+        "dev_fitness": 0.216,
+        "held_out_fitness": 0.19405846357436163,
+        "generalisation_gap": 0.1015811871557332,
+        "generalises": true,
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.049717488206907676,
+          "mean_citation_precision": 0.38208333333333333,
+          "mean_citation_recall": 0.32,
+          "mean_citation_f1": 0.32888888888888895,
+          "mean_retrieval_recall_at_k": 0.67,
+          "mean_input_tokens": 2656.38,
+          "mean_latency_ms": 849.5198375068139
+        }
+      }
+    ]
+  },
+  "legal": {
+    "weights": "legal (w_g=0.40)",
+    "results": [
+      {
+        "name": "Naive RAG",
+        "config": {
+          "chunk_size": 256,
+          "overlap": 0.0,
+          "top_k": 5,
+          "prompt_strategy": "zero-shot",
+          "temperature": 0.0,
+          "citations_required": true,
+          "top_p": 1.0
+        },
+        "dev_fitness": 0.026,
+        "held_out_fitness": -0.023082805320197377,
+        "generalisation_gap": 1.887800204622976,
+        "generalises": false,
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.09986006287692384,
+          "mean_citation_precision": 0.0025,
+          "mean_citation_recall": 0.01,
+          "mean_citation_f1": 0.004,
+          "mean_retrieval_recall_at_k": 0.01,
+          "mean_input_tokens": 1742.47,
+          "mean_latency_ms": 664.0824183274526
+        }
+      },
+      {
+        "name": "Phase 13 Legal GA best",
+        "config": {
+          "chunk_size": 384,
+          "overlap": 0.2,
+          "top_k": 20,
+          "prompt_strategy": "chain-of-thought",
+          "temperature": 1.0,
+          "citations_required": true,
+          "top_p": 1.0
+        },
+        "dev_fitness": 0.185,
+        "held_out_fitness": 0.11026095371964961,
+        "generalisation_gap": 0.4039948447586507,
+        "generalises": false,
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.11350579355913283,
+          "mean_citation_precision": 0.014978535353535353,
+          "mean_citation_recall": 0.09,
+          "mean_citation_f1": 0.024905408317173024,
+          "mean_retrieval_recall_at_k": 0.67,
+          "mean_input_tokens": 8382.33,
+          "mean_latency_ms": 1775.2947674959432
+        }
+      },
+      {
+        "name": "Phase 12 General transfer",
+        "config": {
+          "chunk_size": 512,
+          "overlap": 0.0,
+          "top_k": 19,
+          "prompt_strategy": "chain-of-thought",
+          "temperature": 0.6743266807244299,
+          "citations_required": true,
+          "top_p": 1.0
+        },
+        "dev_fitness": 0.186,
+        "held_out_fitness": 0.12598878945629727,
+        "generalisation_gap": 0.3226409169016276,
+        "generalises": false,
+        "metrics": {
+          "mean_em": 0.0,
+          "mean_f1": 0.10957598458073059,
+          "mean_citation_precision": 0.028531217750258003,
+          "mean_citation_recall": 0.13,
+          "mean_citation_f1": 0.0432051282051282,
+          "mean_retrieval_recall_at_k": 0.72,
+          "mean_input_tokens": 8705.8,
+          "mean_latency_ms": 1816.6057199973147
+        }
+      }
+    ]
+  }
+}

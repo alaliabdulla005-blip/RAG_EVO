@@ -98,6 +98,80 @@ python scripts/generate_cross_track_table.py
 
 ---
 
+## Phase 16 — EC Extension (DeepInfra)
+
+SambaNova deprecated Meta-Llama-3.1-8B-Instruct on 2026-04-14. Phase 16
+migrates to DeepInfra (FP8, $0.02/M input, no daily token ceiling) with an
+8-gene `FullV2Config` chromosome and 3 independent seeds per track.
+
+### Provider setup
+
+```bash
+# Set INFERENCE_PROVIDER=deepinfra in .env
+# Add DEEPINFRA_API_KEY (get from deepinfra.com/dash/api_keys)
+# Add GROQ_API_KEY for RAGAS faithfulness judge
+```
+
+### Reproduction steps (in order)
+
+```bash
+# 1. Provider calibration (verify DeepInfra ≈ SambaNova ±3%)
+INFERENCE_PROVIDER=deepinfra python scripts/run_provider_calibration.py
+
+# 2. Pre-build dense FAISS indexes
+python scripts/build_dense_indexes.py
+
+# 3. GA search — General-QA (3 seeds, run sequentially or in parallel)
+INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_general_qa_seed42.py
+INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_general_qa_seed123.py
+INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_general_qa_seed7.py
+
+# 4. GA search — Legal (3 seeds)
+INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_legal_seed42.py
+INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_legal_seed123.py
+INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_legal_seed7.py
+
+# 5. Held-out evaluation (all systems, BERTScore)
+INFERENCE_PROVIDER=deepinfra python scripts/run_held_out_phase16.py
+
+# 6. RAGAS Faithfulness (Groq 70B judge)
+python scripts/run_ragas_faithfulness.py
+
+# 7. Statistical analysis
+python scripts/run_statistical_analysis.py
+
+# 8. Generate figures
+python scripts/generate_phase16_figures.py
+```
+
+### Expected costs
+
+| Component | Est. tokens | Cost |
+|-----------|------------|------|
+| 6 GA runs (pop=50 x gen=100) | ~5B input | ~$100 |
+| Held-out evaluation | ~500M | ~$10 |
+| RAGAS Faithfulness (Groq) | minimal | free tier |
+| **Total** | | **~$110** |
+
+### Expected wall clock
+
+~12 hours total (6 GA runs at ~2h each, sequential).
+Checkpoint/resume: safe to interrupt and restart any GA script.
+
+### Phase 16 output locations
+
+| Script | Output |
+|--------|--------|
+| `run_provider_calibration.py` | `results/phase16/calibration.json` |
+| `run_phase16_general_qa_seed*.py` | `results/phase16/general_qa/seed_*/` |
+| `run_phase16_legal_seed*.py` | `results/phase16/legal/seed_*/` |
+| `run_held_out_phase16.py` | `results/phase16/held_out_phase16.json` |
+| `run_ragas_faithfulness.py` | `results/phase16/ragas_faithfulness.json` |
+| `run_statistical_analysis.py` | `results/phase16/statistical_analysis.json` |
+| `generate_phase16_figures.py` | `results/phase16/figures/*.png` |
+
+---
+
 ## Project structure
 
 ```

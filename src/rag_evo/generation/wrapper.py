@@ -18,6 +18,8 @@ load_dotenv()
 _DEFAULT_GROQ_MODEL_ID = "llama-3.1-8b-instant"
 _DEFAULT_SAMBANOVA_MODEL_ID = "Meta-Llama-3.1-8B-Instruct"
 _DEFAULT_SAMBANOVA_BASE_URL = "https://api.sambanova.ai/v1"
+_DEFAULT_DEEPINFRA_MODEL_ID = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+_DEFAULT_DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai"
 
 
 @dataclass(frozen=True)
@@ -49,13 +51,13 @@ class WrapperOutput:
 
 
 class GeneratorWrapper:
-    """Wrapper around Llama-3.1-8B-Instruct via Groq or SambaNova inference API.
+    """Wrapper around Llama-3.1-8B-Instruct via Groq, SambaNova, or DeepInfra.
 
     This is the sole interface between the RAG pipeline and the LLM.
     No other module should import or call the inference client directly.
 
     The provider is selected via the INFERENCE_PROVIDER environment variable.
-    Supported values: "groq" (default), "sambanova".
+    Supported values: "groq" (default), "sambanova", "deepinfra".
 
     Args:
         api_key: API key override. If None, read from provider-specific env var.
@@ -95,6 +97,21 @@ class GeneratorWrapper:
                 base_url=base_url,
                 max_retries=0,
             )
+        elif self._provider == "deepinfra":
+            resolved_key = api_key or os.environ.get(
+                "DEEPINFRA_API_KEY", ""
+            )
+            self._model_id = model_id or os.environ.get(
+                "DEEPINFRA_MODEL_ID", _DEFAULT_DEEPINFRA_MODEL_ID
+            )
+            base_url = os.environ.get(
+                "DEEPINFRA_BASE_URL", _DEFAULT_DEEPINFRA_BASE_URL
+            )
+            self._client = openai.OpenAI(
+                api_key=resolved_key,
+                base_url=base_url,
+                max_retries=0,
+            )
         else:
             # Default: groq
             self._provider = "groq"
@@ -107,6 +124,17 @@ class GeneratorWrapper:
         run_id = "wrapper_" + datetime.now().strftime("%Y%m%d_%H%M%S")
         paths = get_project_paths()
         self._logger = get_logger(__name__, paths.logs, run_id)
+
+        if self._provider == "sambanova":
+            self._logger.info(
+                "[PROVIDER] Using SambaNova (BF16)"
+                " — 20M token daily ceiling"
+            )
+        elif self._provider == "deepinfra":
+            self._logger.info(
+                "[PROVIDER] Using DeepInfra (FP8)"
+                " — no daily token ceiling"
+            )
 
     @property
     def provider(self) -> str:
@@ -159,13 +187,13 @@ class GeneratorWrapper:
             "max_tokens": cfg.max_tokens,
             "top_p": cfg.top_p,
         }
-        if self._provider == "groq":
+        if self._provider in ("groq", "deepinfra"):
             call_kwargs["seed"] = cfg.seed
 
         rate_limit_exc: type = (
-            openai.RateLimitError
-            if self._provider == "sambanova"
-            else groq.RateLimitError
+            groq.RateLimitError
+            if self._provider == "groq"
+            else openai.RateLimitError
         )
 
         for attempt in range(self._max_retries + 1):
@@ -217,7 +245,8 @@ class GeneratorWrapper:
         )
 
         # Pace requests to ~30/min for SambaNova free tier
-        time.sleep(2.0)
+        if self._provider == "sambanova":
+            time.sleep(2.0)
 
         return WrapperOutput(
             answer=answer,
@@ -229,3 +258,22 @@ class GeneratorWrapper:
             model_id=self._model_id,
             provider=self._provider,
         )
+
+
+def smoke_test_provider() -> bool:
+    """Make one minimal API call to verify provider connectivity."""
+    try:
+        w = GeneratorWrapper()
+        w.generate(
+            system_prompt="You are a test assistant.",
+            context_block="[No context provided]",
+            query="hi",
+            decoding=DecodingConfig(
+                temperature=0.0, max_tokens=3, seed=42
+            ),
+        )
+        print(f"Provider: {w.provider}, Model: {w._model_id} — OK")
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"Smoke test failed: {e}")
+        return False

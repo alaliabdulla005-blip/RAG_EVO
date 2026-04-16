@@ -22,9 +22,17 @@ SYSTEM_PROMPT_CHAIN_OF_THOUGHT = (
     "say 'I cannot answer based on the provided context.'"
 )
 
+SYSTEM_PROMPT_LEGAL_CITATION = (
+    "You are a legal document analyst. Answer the question by extracting "
+    "the relevant clause verbatim from the provided context. Format your "
+    "answer as: According to [DOC_N]: [exact extracted clause]. "
+    "You MUST include at least one [DOC_N] citation."
+)
+
 PROMPT_STRATEGIES = {
     "zero-shot": SYSTEM_PROMPT_ZERO_SHOT,
     "chain-of-thought": SYSTEM_PROMPT_CHAIN_OF_THOUGHT,
+    "legal-citation": SYSTEM_PROMPT_LEGAL_CITATION,
 }
 
 
@@ -58,7 +66,8 @@ def get_system_prompt(strategy: str = "zero-shot") -> str:
     """Return the system prompt for the given strategy.
 
     Args:
-        strategy: One of "zero-shot" or "chain-of-thought".
+        strategy: One of "zero-shot", "chain-of-thought",
+            or "legal-citation".
 
     Returns:
         System prompt string.
@@ -84,7 +93,8 @@ def build_prompt_components(
     Args:
         chunks: Retrieved chunks in rank order.
         query: The question string.
-        strategy: Prompt strategy. One of "zero-shot", "chain-of-thought".
+        strategy: Prompt strategy. One of "zero-shot", "chain-of-thought",
+            or "legal-citation".
 
     Returns:
         Tuple of (system_prompt, context_block).

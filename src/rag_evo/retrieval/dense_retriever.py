@@ -37,6 +37,8 @@ class DenseRetriever:
         chunks: list[Chunk],
         model_name: str = _DEFAULT_MODEL,
         batch_size: int = 64,
+        *,
+        _faiss_index: faiss.Index | None = None,
     ) -> None:
         if not chunks:
             raise ValueError("chunks must be non-empty.")
@@ -44,21 +46,33 @@ class DenseRetriever:
         self._model_name = model_name
         self._model = SentenceTransformer(model_name)
 
-        logger.info(
-            "Embedding %d chunks with model=%s …", len(chunks), model_name
-        )
-        texts = [c.text for c in chunks]
-        embeddings = self._model.encode(
-            texts, batch_size=batch_size, show_progress_bar=False,
-            convert_to_numpy=True,
-        )
-        embeddings = embeddings.astype(np.float32)
-        faiss.normalize_L2(embeddings)
+        if _faiss_index is not None:
+            self._index = _faiss_index
+            logger.info(
+                "Using pre-built FAISS index (%d vectors, dim=%d).",
+                _faiss_index.ntotal,
+                _faiss_index.d,
+            )
+        else:
+            logger.info(
+                "Embedding %d chunks with model=%s …", len(chunks), model_name
+            )
+            texts = [c.text for c in chunks]
+            embeddings = self._model.encode(
+                texts, batch_size=batch_size, show_progress_bar=False,
+                convert_to_numpy=True,
+            )
+            embeddings = embeddings.astype(np.float32)
+            faiss.normalize_L2(embeddings)
 
-        dim = embeddings.shape[1]
-        self._index = faiss.IndexFlatIP(dim)
-        self._index.add(embeddings)
-        logger.info("FAISS index built with %d vectors (dim=%d).", len(chunks), dim)
+            dim = embeddings.shape[1]
+            self._index = faiss.IndexFlatIP(dim)
+            self._index.add(embeddings)
+            logger.info(
+                "FAISS index built with %d vectors (dim=%d).",
+                len(chunks),
+                dim,
+            )
 
     def retrieve(
         self,
@@ -135,16 +149,15 @@ def build_and_save_dense_index(
     return retriever
 
 
-def load_dense_index(
-    index_dir: Path,
-    batch_size: int = 64,
-) -> "DenseRetriever":
+def load_dense_index(index_dir: Path) -> "DenseRetriever":
     """Load a DenseRetriever from a previously saved index directory.
+
+    Loads the FAISS index directly from disk — does NOT re-embed chunks.
+    Only the SentenceTransformer model is loaded (for query encoding).
 
     Args:
         index_dir: Directory containing chunks.jsonl, faiss.index,
             and metadata.json.
-        batch_size: Embedding batch size for rebuild.
 
     Returns:
         DenseRetriever ready for use.
@@ -164,4 +177,9 @@ def load_dense_index(
         for line in f:
             chunks.append(Chunk(**json.loads(line)))
 
-    return DenseRetriever(chunks, model_name=model_name, batch_size=batch_size)
+    index = faiss.read_index(str(index_dir / "faiss.index"))
+    logger.info(
+        "Loaded FAISS index from %s (%d vectors).", index_dir, index.ntotal
+    )
+
+    return DenseRetriever(chunks, model_name=model_name, _faiss_index=index)

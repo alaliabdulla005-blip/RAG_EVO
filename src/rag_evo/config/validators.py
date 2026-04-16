@@ -8,13 +8,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from rag_evo.config.schema import FullV1Config, MicroPilotConfig
+from rag_evo.config.schema import FullV1Config, FullV2Config, MicroPilotConfig
 from rag_evo.config.space import (
     CHUNK_SIZE_VALUES,
+    CHUNK_SIZE_VALUES_V2,
+    DENSE_OVERLAP_VALUES_V2,
+    MAX_OUTPUT_TOKENS_RANGE_V2,
     MAX_OUTPUT_TOKENS_VALUES,
+    OVERLAP_RANGE_V2,
     OVERLAP_VALUES,
     PROMPT_STRATEGIES,
+    PROMPT_STRATEGIES_V2,
     RETRIEVER_TYPES,
+    RETRIEVER_TYPES_V2,
     TEMPERATURE_RANGE,
     TOP_K_RANGE,
 )
@@ -169,6 +175,100 @@ def repair_full_v1(config: FullV1Config) -> FullV1Config:
         top_k=repaired_micro.top_k,
         prompt_strategy=repaired_micro.prompt_strategy,
         temperature=repaired_micro.temperature,
+        retriever_type=retriever_type,
+        reranker_enabled=reranker_enabled,
+        max_output_tokens=max_output_tokens,
+    )
+
+
+def is_valid_full_v2(config: FullV2Config) -> bool:
+    """Check whether a FullV2Config is valid.
+
+    Args:
+        config: Configuration to check.
+
+    Returns:
+        True if all genes are within valid ranges, False otherwise.
+    """
+    if config.chunk_size not in CHUNK_SIZE_VALUES_V2:
+        return False
+    if not OVERLAP_RANGE_V2[0] <= config.overlap <= OVERLAP_RANGE_V2[1]:
+        return False
+    if config.retriever_type == "dense":
+        if config.overlap not in DENSE_OVERLAP_VALUES_V2:
+            return False
+    if not (
+        isinstance(config.top_k, int)
+        and TOP_K_RANGE[0] <= config.top_k <= TOP_K_RANGE[1]
+    ):
+        return False
+    if config.prompt_strategy not in PROMPT_STRATEGIES_V2:
+        return False
+    if not TEMPERATURE_RANGE[0] <= config.temperature <= TEMPERATURE_RANGE[1]:
+        return False
+    if config.retriever_type not in RETRIEVER_TYPES_V2:
+        return False
+    if not isinstance(config.reranker_enabled, bool):
+        return False
+    if not (
+        isinstance(config.max_output_tokens, int)
+        and MAX_OUTPUT_TOKENS_RANGE_V2[0]
+        <= config.max_output_tokens
+        <= MAX_OUTPUT_TOKENS_RANGE_V2[1]
+    ):
+        return False
+    if config.citations_required is not True:
+        return False
+    if config.top_p != 1.0:
+        return False
+    return True
+
+
+def repair_full_v2(config: FullV2Config) -> FullV2Config:
+    """Repair a FullV2Config to enforce validity.
+
+    Args:
+        config: Potentially invalid configuration after mutation.
+
+    Returns:
+        New FullV2Config with all genes in valid ranges.
+    """
+    chunk_size = snap_to_nearest(config.chunk_size, CHUNK_SIZE_VALUES_V2)
+    overlap = max(
+        OVERLAP_RANGE_V2[0], min(OVERLAP_RANGE_V2[1], config.overlap)
+    )
+    if config.retriever_type == "dense":
+        overlap = snap_to_nearest(overlap, DENSE_OVERLAP_VALUES_V2)
+    top_k = int(
+        max(TOP_K_RANGE[0], min(TOP_K_RANGE[1], round(config.top_k)))
+    )
+    prompt_strategy = (
+        config.prompt_strategy
+        if config.prompt_strategy in PROMPT_STRATEGIES_V2
+        else "zero-shot"
+    )
+    temperature = max(
+        TEMPERATURE_RANGE[0], min(TEMPERATURE_RANGE[1], config.temperature)
+    )
+    retriever_type = (
+        config.retriever_type
+        if config.retriever_type in RETRIEVER_TYPES_V2
+        else "BM25"
+    )
+    reranker_enabled = bool(config.reranker_enabled)
+    max_output_tokens = int(
+        max(
+            MAX_OUTPUT_TOKENS_RANGE_V2[0],
+            min(MAX_OUTPUT_TOKENS_RANGE_V2[1], round(config.max_output_tokens)),
+        )
+    )
+
+    return FullV2Config(
+        chunk_size=chunk_size,
+        overlap=overlap,
+        top_k=top_k,
+        prompt_strategy=prompt_strategy,
+        temperature=temperature,
         retriever_type=retriever_type,
         reranker_enabled=reranker_enabled,
         max_output_tokens=max_output_tokens,

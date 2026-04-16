@@ -16,8 +16,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from rag_evo.config.schema import FullV1Config, MicroPilotConfig
+from rag_evo.config.schema import FullV1Config, FullV2Config, MicroPilotConfig
 from rag_evo.config.space import SearchSpace
+from rag_evo.config.validators import repair_full_v2
 from rag_evo.ga.fitness import (
     FitnessComponents,
     FitnessWeights,
@@ -88,7 +89,7 @@ def load_latest_checkpoint(
 ) -> (
     tuple[
         list[GenerationRecord],
-        list[MicroPilotConfig | FullV1Config],
+        list[MicroPilotConfig | FullV1Config | FullV2Config],
         list[float],
         tuple,
     ]
@@ -129,8 +130,15 @@ def load_latest_checkpoint(
     pop_path = last_gen_dir / "population.json"
     pop_data = json.loads(pop_path.read_text(encoding="utf-8"))
     if search_space._version == "micro_pilot":
-        population: list[MicroPilotConfig | FullV1Config] = [
+        population: list[
+            MicroPilotConfig | FullV1Config | FullV2Config
+        ] = [
             MicroPilotConfig.from_dict(entry["config"])
+            for entry in pop_data
+        ]
+    elif search_space._version == "full_v2":
+        population = [
+            repair_full_v2(FullV2Config.from_dict(entry["config"]))
             for entry in pop_data
         ]
     else:
@@ -204,7 +212,7 @@ class GeneticAlgorithm:
                 )
 
     def _evaluate(
-        self, config: MicroPilotConfig | FullV1Config,
+        self, config: MicroPilotConfig | FullV1Config | FullV2Config,
     ) -> tuple[float, FitnessComponents]:
         """Evaluate one config through the full pipeline (sequential path)."""
         run_id = generate_run_id(config)
@@ -228,7 +236,7 @@ class GeneticAlgorithm:
     def _evaluate_one(
         self,
         idx: int,
-        config: MicroPilotConfig | FullV1Config,
+        config: MicroPilotConfig | FullV1Config | FullV2Config,
         gen_idx: int,
         gc: GAConfig,
     ) -> tuple[int, float, FitnessComponents]:
@@ -305,7 +313,7 @@ class GeneticAlgorithm:
 
     def _init_population(
         self,
-    ) -> list[MicroPilotConfig | FullV1Config]:
+    ) -> list[MicroPilotConfig | FullV1Config | FullV2Config]:
         """Create initial random population."""
         return [
             self._space.sample_random(self._rng)
@@ -314,9 +322,9 @@ class GeneticAlgorithm:
 
     def _next_generation(
         self,
-        population: list[MicroPilotConfig | FullV1Config],
+        population: list[MicroPilotConfig | FullV1Config | FullV2Config],
         fitnesses: list[float],
-    ) -> list[MicroPilotConfig | FullV1Config]:
+    ) -> list[MicroPilotConfig | FullV1Config | FullV2Config]:
         """Create next generation via selection, crossover, mutation."""
         gc = self._ga_config
 
@@ -326,7 +334,7 @@ class GeneticAlgorithm:
             key=lambda i: fitnesses[i],
             reverse=True,
         )
-        new_pop: list[MicroPilotConfig | FullV1Config] = [
+        new_pop: list[MicroPilotConfig | FullV1Config | FullV2Config] = [
             population[ranked[i]] for i in range(gc.elite_count)
         ]
 
@@ -378,7 +386,9 @@ class GeneticAlgorithm:
     def resume(
         self,
         records: list[GenerationRecord],
-        population: list[MicroPilotConfig | FullV1Config],
+        population: list[
+            MicroPilotConfig | FullV1Config | FullV2Config
+        ],
         fitnesses: list[float],
     ) -> list[GenerationRecord]:
         """Resume GA from a saved state.
@@ -401,7 +411,9 @@ class GeneticAlgorithm:
 
     def _evolve(
         self,
-        population: list[MicroPilotConfig | FullV1Config],
+        population: list[
+            MicroPilotConfig | FullV1Config | FullV2Config
+        ],
         start_gen: int = 0,
         prior_records: list[GenerationRecord] | None = None,
     ) -> list[GenerationRecord]:
@@ -500,7 +512,9 @@ class GeneticAlgorithm:
     def _save_generation(
         self,
         record: GenerationRecord,
-        population: list[MicroPilotConfig | FullV1Config],
+        population: list[
+            MicroPilotConfig | FullV1Config | FullV2Config
+        ],
         fitnesses: list[float],
     ) -> None:
         """Save generation artifacts to disk."""

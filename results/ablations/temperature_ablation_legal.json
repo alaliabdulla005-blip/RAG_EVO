@@ -1,0 +1,82 @@
+{
+  "ablation": "temperature",
+  "track": "legal",
+  "base_config": {
+    "chunk_size": 384,
+    "overlap": 0.2,
+    "top_k": 20,
+    "prompt_strategy": "chain-of-thought"
+  },
+  "n_records": 150,
+  "dev_fitness_at_1_0": 0.185,
+  "limitations": [
+    "Small development set (50 records) used for both GA search and final evaluation \u2014 no held-out test set during optimisation. Evaluation noise CV~0.087.",
+    "Temperature=1.0 for legal best config is potentially a noise artefact from stochastic evaluation on 50 records. Temperature ablation (Task 1) investigates this.",
+    "BM25-only retrieval throughout v1. Dense and hybrid retrieval are not explored. Retrieval recall on General-QA saturates at 0.730 \u2014 a BM25 ceiling.",
+    "Citation format mismatch on legal data: CUAD answers do not naturally elicit [DOC_N] citation markers, causing CitF1=0.123 despite RetR@5=0.940.",
+    "Legal track GA interrupted by SambaNova 20M/day quota exhaustion. Resumed on new account \u2014 results valid but infrastructure instability documented.",
+    "5-gene search space only (chunk_size, overlap, top_k, prompt_strategy, temperature). retriever_type, reranker_enabled, max_output_tokens not searched in v1."
+  ],
+  "results": [
+    {
+      "temperature": 0.0,
+      "fitness": 0.12731852183220935,
+      "f1": 0.1066101593500869,
+      "cit_f1": 0.025047619047619048,
+      "ret_r_at_k": 0.76,
+      "cit_p": 0.016052910052910055,
+      "cit_r": 0.07333333333333333,
+      "mean_input_tokens": 8383.526666666667,
+      "mean_latency_ms": 1668.3573591864358,
+      "vs_dev": "lower"
+    },
+    {
+      "temperature": 0.3,
+      "fitness": 0.12933342235274414,
+      "f1": 0.10308786607669675,
+      "cit_f1": 0.03823614592035644,
+      "ret_r_at_k": 0.76,
+      "cit_p": 0.023889585360173597,
+      "cit_r": 0.12666666666666668,
+      "mean_input_tokens": 8383.526666666667,
+      "mean_latency_ms": 1888.739583840749,
+      "vs_dev": "lower"
+    },
+    {
+      "temperature": 0.5,
+      "fitness": 0.12670989580357112,
+      "f1": 0.10327330731219013,
+      "cit_f1": 0.027965317906494373,
+      "ret_r_at_k": 0.76,
+      "cit_p": 0.01749867724867725,
+      "cit_r": 0.1,
+      "mean_input_tokens": 8383.526666666667,
+      "mean_latency_ms": 1745.8223552683678,
+      "vs_dev": "lower"
+    },
+    {
+      "temperature": 0.7,
+      "fitness": 0.13261757018337347,
+      "f1": 0.11249781183290816,
+      "cit_f1": 0.03808513708513709,
+      "ret_r_at_k": 0.76,
+      "cit_p": 0.030484342454930684,
+      "cit_r": 0.09333333333333334,
+      "mean_input_tokens": 8383.526666666667,
+      "mean_latency_ms": 1836.5828200553854,
+      "vs_dev": "lower"
+    },
+    {
+      "temperature": 1.0,
+      "fitness": 0.1350441285271097,
+      "f1": 0.12596501025460413,
+      "cit_f1": 0.0339794143478354,
+      "ret_r_at_k": 0.76,
+      "cit_p": 0.025632515632515628,
+      "cit_r": 0.09333333333333334,
+      "mean_input_tokens": 8383.526666666667,
+      "mean_latency_ms": 1833.7140288405742,
+      "vs_dev": "lower"
+    }
+  ]
+}

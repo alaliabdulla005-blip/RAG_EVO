@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 from rag_evo.data.schemas import CorpusDocument
 from rag_evo.retrieval.bm25_retriever import BM25Retriever, RetrievalResult
 from rag_evo.retrieval.chunker import chunk_corpus
-from rag_evo.retrieval.dense_retriever import DenseRetriever
+from rag_evo.retrieval.dense_retriever import (
+    DenseRetriever,
+    load_dense_index,
+)
 from rag_evo.retrieval.hybrid_retriever import HybridRetriever
 from rag_evo.retrieval.reranker import Reranker
 
@@ -49,6 +53,7 @@ def build_retriever(
     config: RetrieverConfig,
     documents: list[CorpusDocument],
     reranker: Reranker | None = None,
+    index_dir: Path | None = None,
 ) -> Callable[[str, int], RetrievalResult]:
     """Build and return a retriever callable from config and documents.
 
@@ -56,6 +61,10 @@ def build_retriever(
         config: RetrieverConfig specifying retriever type and params.
         documents: List of CorpusDocument objects to chunk and index.
         reranker: Optional Reranker instance.
+        index_dir: Optional path to a pre-built dense FAISS index
+            directory. When provided and retriever_type is "dense",
+            the index is loaded from disk instead of building from
+            scratch. Ignored for non-dense retriever types.
 
     Returns:
         Callable with signature retrieve(query, top_k) -> RetrievalResult.
@@ -69,22 +78,27 @@ def build_retriever(
             "reranker_enabled=True requires a Reranker instance."
         )
 
-    chunks = chunk_corpus(
-        documents, chunk_size=config.chunk_size, overlap=config.overlap
-    )
-
-    if config.retriever_type == "BM25":
-        base = BM25Retriever(chunks)
-    elif config.retriever_type == "dense":
-        base = DenseRetriever(chunks, model_name=config.dense_model_name)
-    elif config.retriever_type == "hybrid":
-        base = HybridRetriever(
-            chunks,
-            alpha=config.hybrid_alpha,
-            dense_model_name=config.dense_model_name,
-        )
+    if index_dir is not None and config.retriever_type == "dense":
+        base = load_dense_index(index_dir)
     else:
-        raise ValueError(f"Unknown retriever_type: {config.retriever_type!r}")
+        chunks = chunk_corpus(
+            documents, chunk_size=config.chunk_size, overlap=config.overlap
+        )
+
+        if config.retriever_type == "BM25":
+            base = BM25Retriever(chunks)
+        elif config.retriever_type == "dense":
+            base = DenseRetriever(chunks, model_name=config.dense_model_name)
+        elif config.retriever_type == "hybrid":
+            base = HybridRetriever(
+                chunks,
+                alpha=config.hybrid_alpha,
+                dense_model_name=config.dense_model_name,
+            )
+        else:
+            raise ValueError(
+                f"Unknown retriever_type: {config.retriever_type!r}"
+            )
 
     if config.reranker_enabled and reranker is not None:
         def retrieve(query: str, top_k: int = config.top_k) -> RetrievalResult:

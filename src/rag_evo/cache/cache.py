@@ -19,7 +19,7 @@ import threading
 from dataclasses import asdict
 from pathlib import Path
 
-from rag_evo.config.schema import FullV1Config, MicroPilotConfig
+from rag_evo.config.schema import FullV1Config, FullV2Config, MicroPilotConfig
 from rag_evo.data.schemas import QARecord
 from rag_evo.pipeline.rag_pipeline import PipelineResult
 from rag_evo.retrieval.chunker import Chunk
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 def make_cache_key(
     record: QARecord,
-    config: MicroPilotConfig | FullV1Config,
+    config: MicroPilotConfig | FullV1Config | FullV2Config,
     model_id: str,
 ) -> str:
     """Compute a SHA-256 cache key for a (record, config) pair.
