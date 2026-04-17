@@ -2,13 +2,15 @@
 
 Builds a BM25 index over a list of Chunk objects and retrieves
 the top-k most relevant chunks for a given query.
+
+Uses bm25s (sparse-matrix BM25) for fast, GIL-friendly scoring.
 """
 
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from rank_bm25 import BM25Okapi
+import bm25s
 
 from rag_evo.retrieval.chunker import Chunk
 
@@ -45,8 +47,9 @@ class BM25Retriever:
         if not chunks:
             raise ValueError("chunks must be non-empty.")
         self._chunks = chunks
-        tokenised = [chunk.text.split() for chunk in chunks]
-        self._bm25 = BM25Okapi(tokenised)
+        corpus_tokens = bm25s.tokenize([c.text for c in chunks])
+        self._bm25 = bm25s.BM25(k1=1.5, b=0.75)
+        self._bm25.index(corpus_tokens)
 
     def retrieve(
         self,
@@ -71,13 +74,18 @@ class BM25Retriever:
         if not query.strip():
             raise ValueError("query must not be empty or whitespace only.")
 
-        scores = self._bm25.get_scores(query.split())
-        paired = sorted(
-            zip(self._chunks, scores), key=lambda x: x[1], reverse=True
-        )
+        query_tokens = bm25s.tokenize([query])
+        k = min(top_k, len(self._chunks))
+        results, scores = self._bm25.retrieve(query_tokens, k=k)
+        indices = results[0]
+        score_vals = scores[0]
+        retrieved: list[tuple[Chunk, float]] = [
+            (self._chunks[int(indices[i])], float(score_vals[i]))
+            for i in range(k)
+        ]
         return RetrievalResult(
             query=query,
-            retrieved_chunks=list(paired[:top_k]),
+            retrieved_chunks=retrieved,
             top_k=top_k,
             retriever_type="bm25",
         )

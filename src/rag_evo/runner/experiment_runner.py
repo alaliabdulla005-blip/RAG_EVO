@@ -35,7 +35,16 @@ from rag_evo.retrieval.retriever_factory import RetrieverConfig, build_retriever
 
 logger = logging.getLogger(__name__)
 
-_INDEX_CACHE_MAX = 6
+_INDEX_CACHE_MAX = 24
+
+# Snap overlap to these discrete values for index cache efficiency.
+# Continuous overlap [0.0, 0.5] produces unique cache keys for every
+# individual; snapping to 11 values collapses near-identical overlaps
+# so the LRU cache can serve hits across individuals.
+_OVERLAP_SNAP_VALUES = [
+    0.00, 0.05, 0.10, 0.15, 0.20,
+    0.25, 0.30, 0.35, 0.40, 0.45, 0.50,
+]
 
 
 def generate_run_id(
@@ -152,11 +161,18 @@ class ExperimentRunner:
             OrderedDict()
         )
 
-    def run(self, run_config: RunConfig) -> RunResult:
+    def run(
+        self,
+        run_config: RunConfig,
+        save_artifacts: bool = True,
+    ) -> RunResult:
         """Evaluate one pipeline configuration on all QA records.
 
         Args:
             run_config: Complete run configuration.
+            save_artifacts: Write per-run artifact files to disk.
+                Set to False during GA search to eliminate disk I/O
+                overhead; the result cache is still populated regardless.
 
         Returns:
             RunResult with all metrics and metadata populated.
@@ -168,13 +184,18 @@ class ExperimentRunner:
         reranker_enabled = getattr(pc, "reranker_enabled", False)
         max_output_tokens = getattr(pc, "max_output_tokens", 256)
 
-        # Snap overlap for dense retrieval (path + cache key consistency)
+        # Snap overlap for index cache key and index construction.
+        # Dense uses its own fixed set; BM25/hybrid snap to 11
+        # discrete values so the LRU cache can serve hits across
+        # individuals with near-identical continuous overlaps.
         if retriever_type == "dense":
             snapped_overlap = snap_to_nearest(
                 pc.overlap, DENSE_OVERLAP_VALUES_V2
             )
         else:
-            snapped_overlap = pc.overlap
+            snapped_overlap = snap_to_nearest(
+                pc.overlap, _OVERLAP_SNAP_VALUES
+            )
 
         index_key = (pc.chunk_size, snapped_overlap, retriever_type)
 
@@ -263,7 +284,8 @@ class ExperimentRunner:
             timestamp=timestamp,
         )
 
-        self._save_run_artifacts(run_config, run_result, pipeline_results)
+        if save_artifacts:
+            self._save_run_artifacts(run_config, run_result, pipeline_results)
         logger.info(
             "Run %s complete: hits=%d misses=%d wall=%.1fs",
             run_config.run_id, cache_hits, cache_misses, elapsed,

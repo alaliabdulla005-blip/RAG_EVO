@@ -226,7 +226,7 @@ class GeneticAlgorithm:
             model_id=self._template.model_id,
             seed=self._template.seed,
         )
-        result = self._runner.run(run_config)
+        result = self._runner.run(run_config, save_artifacts=False)
         components = compute_fitness_components(
             result.aggregate_metrics,
             self._weights,
@@ -288,7 +288,7 @@ class GeneticAlgorithm:
                 model_id=self._template.model_id,
                 seed=self._template.seed,
             )
-            result = runner.run(run_config)
+            result = runner.run(run_config, save_artifacts=False)
             components = compute_fitness_components(
                 result.aggregate_metrics, self._weights
             )

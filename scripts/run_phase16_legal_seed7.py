@@ -108,7 +108,7 @@ ga_config = GAConfig(
     mutation_rate=0.2,
     elite_count=1,
     seed=SEED,
-    max_workers=int(os.environ.get("EVAL_WORKERS", "4")),
+    max_workers=int(os.environ.get("EVAL_WORKERS", "8")),
 )
 
 output_dir = paths.results / "phase16" / "legal" / f"seed_{SEED}"
