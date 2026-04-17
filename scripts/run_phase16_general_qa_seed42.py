@@ -18,7 +18,7 @@ Run from project root:
     INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_general_qa_seed42.py
 
 IMPORTANT: Run with caffeinate to prevent macOS sleep:
-  caffeinate -dims INFERENCE_PROVIDER=deepinfra \\
+  caffeinate -dims env INFERENCE_PROVIDER=deepinfra \\
     python scripts/run_phase16_general_qa_seed42.py
 Without caffeinate the laptop sleeps mid-run,
 killing TCP connections and hanging the process.
