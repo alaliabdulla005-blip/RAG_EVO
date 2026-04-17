@@ -95,7 +95,8 @@ class GeneratorWrapper:
             self._client = openai.OpenAI(
                 api_key=resolved_key,
                 base_url=base_url,
-                max_retries=0,
+                timeout=120.0,
+                max_retries=3,
             )
         elif self._provider == "deepinfra":
             resolved_key = api_key or os.environ.get(
@@ -110,7 +111,8 @@ class GeneratorWrapper:
             self._client = openai.OpenAI(
                 api_key=resolved_key,
                 base_url=base_url,
-                max_retries=0,
+                timeout=120.0,
+                max_retries=3,
             )
         else:
             # Default: groq

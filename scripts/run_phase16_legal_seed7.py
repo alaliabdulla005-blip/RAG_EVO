@@ -16,6 +16,12 @@ DO NOT run this script automatically — run after provider calibration.
 
 Run from project root:
     INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_legal_seed7.py
+
+IMPORTANT: Run with caffeinate to prevent macOS sleep:
+  caffeinate -dims INFERENCE_PROVIDER=deepinfra \\
+    python scripts/run_phase16_legal_seed7.py
+Without caffeinate the laptop sleeps mid-run,
+killing TCP connections and hanging the process.
 """
 
 import json
