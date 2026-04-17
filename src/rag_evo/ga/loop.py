@@ -273,6 +273,7 @@ class GeneticAlgorithm:
             gc.population_size,
         )
 
+        t_ind = time.perf_counter()
         assert self._runner_pool is not None
         runner = self._runner_pool.get()
         try:
@@ -291,6 +292,18 @@ class GeneticAlgorithm:
             components = compute_fitness_components(
                 result.aggregate_metrics, self._weights
             )
+            elapsed_ind = time.perf_counter() - t_ind
+            retriever_type = getattr(config, "retriever_type", "BM25")
+            print(
+                f"  [Gen {gen_idx + 1:03d}"
+                f" | Ind {idx + 1:02d}/{gc.population_size:02d}"
+                f" | {retriever_type}"
+                f" | chunk={config.chunk_size}"
+                f" | top_k={config.top_k}"
+                f" | fit={components.fitness:.4f}"
+                f" | {elapsed_ind:.1f}s]",
+                flush=True,
+            )
             return idx, components.fitness, components
         except Exception as exc:  # noqa: BLE001
             logger.warning(
@@ -298,6 +311,13 @@ class GeneticAlgorithm:
                 tag,
                 idx + 1,
                 exc,
+            )
+            elapsed_ind = time.perf_counter() - t_ind
+            print(
+                f"  [Gen {gen_idx + 1:03d}"
+                f" | Ind {idx + 1:02d}/{gc.population_size:02d}"
+                f" | FAILED | {elapsed_ind:.1f}s]",
+                flush=True,
             )
             zero = FitnessComponents(
                 q_norm=0.0,
@@ -466,7 +486,22 @@ class GeneticAlgorithm:
                         i + 1,
                         gc.population_size,
                     )
+                    t_ind = time.perf_counter()
                     fitness, comp = self._evaluate(config)
+                    elapsed_ind = time.perf_counter() - t_ind
+                    retriever_type = getattr(
+                        config, "retriever_type", "BM25"
+                    )
+                    print(
+                        f"  [Gen {gen_idx + 1:03d}"
+                        f" | Ind {i + 1:02d}/{gc.population_size:02d}"
+                        f" | {retriever_type}"
+                        f" | chunk={config.chunk_size}"
+                        f" | top_k={config.top_k}"
+                        f" | fit={fitness:.4f}"
+                        f" | {elapsed_ind:.1f}s]",
+                        flush=True,
+                    )
                     fitnesses.append(fitness)
                     components_list.append(comp)
 
@@ -494,6 +529,15 @@ class GeneticAlgorithm:
                 record.mean_fitness,
                 record.worst_fitness,
                 elapsed,
+            )
+            mins, secs = divmod(int(elapsed), 60)
+            hrs, mins = divmod(mins, 60)
+            print(
+                f"  Gen {gen_idx + 1:03d}/{gc.generations:03d}"
+                f" | best={record.best_fitness:.4f}"
+                f" | mean={record.mean_fitness:.4f}"
+                f" | elapsed={hrs:02d}:{mins:02d}:{secs:02d}",
+                flush=True,
             )
 
             if self._output_dir is not None:

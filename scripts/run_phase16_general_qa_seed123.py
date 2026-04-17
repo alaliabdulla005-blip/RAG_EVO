@@ -3,7 +3,7 @@
 Phase 16 search space: 6 active genes (chunk_size, overlap, top_k,
 prompt_strategy, temperature, max_output_tokens). retriever_type
 fixed to BM25 and reranker_enabled fixed to False due to evaluation
-time constraints on 8GB RAM with 100 dev records. Dense retrieval
+time constraints on 8GB RAM with 50 dev records. Dense retrieval
 and reranking are proposed as future work in Section 5.2.
 
 8-gene FullV2Config chromosome (2 genes fixed, 6 searched),
@@ -69,7 +69,7 @@ print("  Generations       : 100")
 print("  Crossover rate    : 0.5")
 print("  Mutation rate     : 0.2")
 print("  Elite count       : 1")
-print("  Dev set           : records[:100] (100 records)")
+print("  Dev set           : records[:50] (50 records)")
 print(f"  Seed              : {SEED}")
 print("  Cache (shared)    : data/cache/phase16_general_qa/")
 print(f"  Output            : results/phase16/general_qa/seed_{SEED}/")
@@ -85,8 +85,8 @@ print(
     f"{len(corpus_documents)} corpus docs"
 )
 
-records = debug_records[:100]
-print(f"Dev set: {len(records)} records (first 100)")
+records = debug_records[:50]
+print(f"Dev set: {len(records)} records (first 50)")
 
 # ── Build components ────────────────────────────────────────────────────────
 wrapper = GeneratorWrapper()
