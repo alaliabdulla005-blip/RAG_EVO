@@ -442,15 +442,31 @@ class ExperimentRunner:
 
         semaphore = asyncio.Semaphore(20)
 
+        record_timeout = 180.0  # seconds; P99 is ~9s
+
+        async def _eval_with_timeout(record):
+            try:
+                return await asyncio.wait_for(
+                    self._evaluate_record_async(
+                        record,
+                        adapted_retriever,
+                        pc,
+                        decoding,
+                        run_config.model_id,
+                        semaphore,
+                    ),
+                    timeout=record_timeout,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "Record %s timed out after %.0fs — skipping",
+                    record.record_id,
+                    record_timeout,
+                )
+                return None, False
+
         tasks = [
-            self._evaluate_record_async(
-                record,
-                adapted_retriever,
-                pc,
-                decoding,
-                run_config.model_id,
-                semaphore,
-            )
+            _eval_with_timeout(record)
             for record in run_config.qa_records
         ]
         results = await asyncio.gather(*tasks)
