@@ -26,6 +26,7 @@ Output: results/phase16/held_out_phase16.json
 
 import json
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -33,6 +34,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv(Path(".env"))
+
+os.environ["SNAP_CACHE_KEYS"] = "1"
 
 from rag_evo.cache.cache import ResultCache
 from rag_evo.config.schema import FullV2Config, MicroPilotConfig

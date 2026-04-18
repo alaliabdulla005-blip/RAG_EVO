@@ -1,5 +1,6 @@
 """GeneratorWrapper: sole interface between the RAG pipeline and the LLM."""
 
+import asyncio
 import os
 import time
 from dataclasses import dataclass
@@ -98,6 +99,12 @@ class GeneratorWrapper:
                 timeout=120.0,
                 max_retries=3,
             )
+            self._async_client = openai.AsyncOpenAI(
+                api_key=resolved_key,
+                base_url=base_url,
+                timeout=120.0,
+                max_retries=3,
+            )
         elif self._provider == "deepinfra":
             resolved_key = api_key or os.environ.get(
                 "DEEPINFRA_API_KEY", ""
@@ -114,6 +121,12 @@ class GeneratorWrapper:
                 timeout=120.0,
                 max_retries=3,
             )
+            self._async_client = openai.AsyncOpenAI(
+                api_key=resolved_key,
+                base_url=base_url,
+                timeout=120.0,
+                max_retries=3,
+            )
         else:
             # Default: groq
             self._provider = "groq"
@@ -122,6 +135,7 @@ class GeneratorWrapper:
                 "GROQ_MODEL_ID", _DEFAULT_GROQ_MODEL_ID
             )
             self._client = groq.Groq(api_key=resolved_key)
+            self._async_client = None
 
         run_id = "wrapper_" + datetime.now().strftime("%Y%m%d_%H%M%S")
         paths = get_project_paths()
@@ -249,6 +263,109 @@ class GeneratorWrapper:
         # Pace requests to ~30/min for SambaNova free tier
         if self._provider == "sambanova":
             time.sleep(2.0)
+
+        return WrapperOutput(
+            answer=answer,
+            input_tokens=response.usage.prompt_tokens,  # type: ignore[union-attr]
+            output_tokens=response.usage.completion_tokens,  # type: ignore[union-attr]
+            latency_ms=latency_ms,
+            raw_prompt=user_message,
+            raw_answer=raw_answer,
+            model_id=self._model_id,
+            provider=self._provider,
+        )
+
+    async def async_generate(
+        self,
+        system_prompt: str,
+        context_block: str,
+        query: str,
+        decoding: DecodingConfig | None = None,
+    ) -> WrapperOutput:
+        """Async version of generate(). Same interface, non-blocking."""
+        if self._async_client is None:
+            raise RuntimeError(
+                "async_generate not supported for groq provider"
+            )
+
+        cfg = decoding if decoding is not None else self._default_decoding
+        user_message = (
+            f"Context:\n{context_block}\n\nQuestion: {query}"
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ]
+
+        self._logger.debug("Calling model=%s", self._model_id)
+
+        call_kwargs: dict = {
+            "model": self._model_id,
+            "messages": messages,
+            "temperature": cfg.temperature,
+            "max_tokens": cfg.max_tokens,
+            "top_p": cfg.top_p,
+        }
+        if self._provider == "deepinfra":
+            call_kwargs["seed"] = cfg.seed
+
+        response = None
+        latency_ms = 0.0
+
+        for attempt in range(self._max_retries + 1):
+            try:
+                t0 = time.perf_counter()
+                response = (
+                    await self._async_client.chat.completions.create(
+                        **call_kwargs
+                    )
+                )
+                latency_ms = (time.perf_counter() - t0) * 1000.0
+                break
+            except openai.RateLimitError as exc:
+                if attempt < self._max_retries:
+                    delay = min(
+                        self._retry_base_delay * (2**attempt), 60.0
+                    )
+                    self._logger.warning(
+                        "Rate limit hit, attempt %d/%d. "
+                        "Retrying in %.1fs.",
+                        attempt + 1,
+                        self._max_retries + 1,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    raise RuntimeError(
+                        f"{self._provider} rate limit: "
+                        f"all {self._max_retries + 1} "
+                        "attempts exhausted."
+                    ) from exc
+
+        raw_answer = (
+            response.choices[0].message.content or ""  # type: ignore[union-attr]
+        )
+        answer = raw_answer.strip()
+
+        if not answer:
+            raise ValueError(
+                "Model returned empty answer. "
+                "Check prompt construction and API connectivity."
+            )
+
+        self._logger.info(
+            "model=%s input_tokens=%d output_tokens=%d latency_ms=%.1f",
+            self._model_id,
+            response.usage.prompt_tokens,  # type: ignore[union-attr]
+            response.usage.completion_tokens,  # type: ignore[union-attr]
+            latency_ms,
+        )
+        self._logger.debug(
+            "raw_prompt=%r raw_answer=%r", user_message, raw_answer
+        )
+
+        if self._provider == "sambanova":
+            await asyncio.sleep(2.0)
 
         return WrapperOutput(
             answer=answer,

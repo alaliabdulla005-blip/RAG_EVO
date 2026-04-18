@@ -15,16 +15,25 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import threading
 from dataclasses import asdict
 from pathlib import Path
 
 from rag_evo.config.schema import FullV1Config, FullV2Config, MicroPilotConfig
+from rag_evo.config.validators import snap_to_nearest
 from rag_evo.data.schemas import QARecord
 from rag_evo.pipeline.rag_pipeline import PipelineResult
 from rag_evo.retrieval.chunker import Chunk
 
 logger = logging.getLogger(__name__)
+
+# Snap grids for SNAP_CACHE_KEYS=1. Continuous genes are rounded to
+# the nearest grid value before hashing so that near-identical configs
+# share cache entries across GA individuals.
+_SNAP_OVERLAP = [round(i * 0.05, 2) for i in range(11)]       # 0.00–0.50
+_SNAP_TEMPERATURE = [round(i * 0.05, 2) for i in range(21)]   # 0.00–1.00
+_SNAP_MAX_TOKENS = list(range(64, 257, 16))                    # 64–256
 
 
 def make_cache_key(
@@ -38,24 +47,37 @@ def make_cache_key(
     Changing any field in config or the record_id produces a
     different key.
 
+    When SNAP_CACHE_KEYS=1, continuous genes (overlap, temperature,
+    max_output_tokens) are snapped to discrete grids before hashing
+    so that near-identical configs share cache entries.
+
     Args:
         record: The QARecord being evaluated.
-        config: MicroPilotConfig or FullV1Config.
-        model_id: Model identifier string (e.g. "llama-3.1-8b-instant").
+        config: MicroPilotConfig, FullV1Config, or FullV2Config.
+        model_id: Model identifier string.
 
     Returns:
         64-character hex string (SHA-256 hash).
     """
+    overlap = config.overlap
+    temperature = config.temperature
+    max_out = getattr(config, "max_output_tokens", 256)
+
+    if os.environ.get("SNAP_CACHE_KEYS", "0") == "1":
+        overlap = snap_to_nearest(overlap, _SNAP_OVERLAP)
+        temperature = snap_to_nearest(temperature, _SNAP_TEMPERATURE)
+        max_out = snap_to_nearest(max_out, _SNAP_MAX_TOKENS)
+
     key_dict = {
         "record_id": record.record_id,
         "chunk_size": config.chunk_size,
-        "overlap": config.overlap,
+        "overlap": overlap,
         "top_k": config.top_k,
         "prompt_strategy": config.prompt_strategy,
-        "temperature": config.temperature,
+        "temperature": temperature,
         "retriever_type": getattr(config, "retriever_type", "BM25"),
         "reranker_enabled": getattr(config, "reranker_enabled", False),
-        "max_output_tokens": getattr(config, "max_output_tokens", 256),
+        "max_output_tokens": max_out,
         "citations_required": config.citations_required,
         "top_p": config.top_p,
         "model_id": model_id,

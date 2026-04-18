@@ -13,9 +13,12 @@ The runner is the innermost loop of the GA. It must be:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
+import os
+import re
 import time
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
@@ -29,6 +32,7 @@ from rag_evo.config.validators import snap_to_nearest
 from rag_evo.evaluation.harness import AggregateMetrics, EvaluationHarness
 from rag_evo.generation.config import DecodingConfig
 from rag_evo.generation.wrapper import GeneratorWrapper
+from rag_evo.pipeline.prompt_builder import build_prompt_components
 from rag_evo.pipeline.rag_pipeline import PipelineResult, RAGPipeline
 from rag_evo.retrieval.reranker import Reranker
 from rag_evo.retrieval.retriever_factory import RetrieverConfig, build_retriever
@@ -45,6 +49,8 @@ _OVERLAP_SNAP_VALUES = [
     0.00, 0.05, 0.10, 0.15, 0.20,
     0.25, 0.30, 0.35, 0.40, 0.45, 0.50,
 ]
+
+_CITATION_RE = re.compile(r"\[DOC_\d+\]")
 
 
 def generate_run_id(
@@ -177,6 +183,10 @@ class ExperimentRunner:
         Returns:
             RunResult with all metrics and metadata populated.
         """
+        if os.environ.get("ASYNC_EVAL", "0") == "1":
+            return asyncio.run(
+                self._run_async(run_config, save_artifacts)
+            )
         start_time = time.perf_counter()
         pc = run_config.pipeline_config
 
@@ -289,6 +299,201 @@ class ExperimentRunner:
         logger.info(
             "Run %s complete: hits=%d misses=%d wall=%.1fs",
             run_config.run_id, cache_hits, cache_misses, elapsed,
+        )
+        return run_result
+
+    async def _evaluate_record_async(
+        self,
+        record,
+        adapted_retriever,
+        pc,
+        decoding: DecodingConfig,
+        model_id: str,
+        semaphore: asyncio.Semaphore,
+    ) -> tuple[PipelineResult | None, bool]:
+        """Evaluate one record asynchronously.
+
+        Returns:
+            (result, is_cache_hit) tuple. result is None on failure.
+        """
+        cache_key = make_cache_key(record, pc, model_id)
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached, True
+
+        async with semaphore:
+            try:
+                retrieval = adapted_retriever.retrieve(
+                    record.question, top_k=pc.top_k
+                )
+                chunks = [c for c, _ in retrieval.retrieved_chunks]
+
+                system_prompt, context_block = (
+                    build_prompt_components(
+                        chunks, record.question, pc.prompt_strategy
+                    )
+                )
+
+                output = await self._wrapper.async_generate(
+                    system_prompt=system_prompt,
+                    context_block=context_block,
+                    query=record.question,
+                    decoding=decoding,
+                )
+
+                cited = _CITATION_RE.findall(output.answer)
+                result = PipelineResult(
+                    record_id=record.record_id,
+                    question=record.question,
+                    answer=output.answer,
+                    cited_chunk_ids=cited,
+                    retrieved_chunks=chunks,
+                    input_tokens=output.input_tokens,
+                    output_tokens=output.output_tokens,
+                    latency_ms=output.latency_ms,
+                    retriever_type=getattr(
+                        pc, "retriever_type", "BM25"
+                    ),
+                    prompt_strategy=pc.prompt_strategy,
+                    chunk_size=pc.chunk_size,
+                    overlap=pc.overlap,
+                    top_k=pc.top_k,
+                    raw_prompt=output.raw_prompt,
+                    raw_answer=output.raw_answer,
+                )
+                self._cache.set(cache_key, result)
+                return result, False
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Skipping record %s: %s",
+                    record.record_id,
+                    exc,
+                )
+                return None, False
+
+    async def _run_async(
+        self,
+        run_config: RunConfig,
+        save_artifacts: bool = True,
+    ) -> RunResult:
+        """Async version of run(). Evaluates records concurrently."""
+        start_time = time.perf_counter()
+        pc = run_config.pipeline_config
+
+        retriever_type = getattr(pc, "retriever_type", "BM25")
+        reranker_enabled = getattr(pc, "reranker_enabled", False)
+        max_output_tokens = getattr(pc, "max_output_tokens", 256)
+
+        if retriever_type == "dense":
+            snapped_overlap = snap_to_nearest(
+                pc.overlap, DENSE_OVERLAP_VALUES_V2
+            )
+        else:
+            snapped_overlap = snap_to_nearest(
+                pc.overlap, _OVERLAP_SNAP_VALUES
+            )
+
+        index_key = (pc.chunk_size, snapped_overlap, retriever_type)
+
+        if index_key in self._index_cache:
+            self._index_cache.move_to_end(index_key)
+            adapted_retriever = self._index_cache[index_key]
+            logger.info("Index cache hit for %s", index_key)
+        else:
+            retriever_cfg = RetrieverConfig(
+                retriever_type=retriever_type,
+                chunk_size=pc.chunk_size,
+                overlap=snapped_overlap,
+                top_k=pc.top_k,
+                reranker_enabled=reranker_enabled,
+            )
+            build_kwargs: dict = {
+                "reranker": (
+                    self._reranker if reranker_enabled else None
+                ),
+            }
+            if (
+                retriever_type == "dense"
+                and run_config.track is not None
+            ):
+                build_kwargs["track"] = run_config.track
+                if run_config.index_root is not None:
+                    build_kwargs["index_root"] = (
+                        run_config.index_root
+                    )
+            retrieve_fn = build_retriever(
+                retriever_cfg,
+                run_config.corpus_documents,
+                **build_kwargs,
+            )
+            adapted_retriever = _RetrievableAdapter(retrieve_fn)
+            self._index_cache[index_key] = adapted_retriever
+            if len(self._index_cache) > _INDEX_CACHE_MAX:
+                self._index_cache.popitem(last=False)
+            logger.info(
+                "Index cache miss, built for %s", index_key
+            )
+
+        decoding = DecodingConfig(
+            temperature=pc.temperature,
+            max_tokens=max_output_tokens,
+            seed=run_config.seed,
+        )
+
+        semaphore = asyncio.Semaphore(20)
+
+        tasks = [
+            self._evaluate_record_async(
+                record,
+                adapted_retriever,
+                pc,
+                decoding,
+                run_config.model_id,
+                semaphore,
+            )
+            for record in run_config.qa_records
+        ]
+        results = await asyncio.gather(*tasks)
+
+        pipeline_results: list[PipelineResult] = []
+        cache_hits = 0
+        cache_misses = 0
+        for result, is_hit in results:
+            if result is not None:
+                pipeline_results.append(result)
+                if is_hit:
+                    cache_hits += 1
+                else:
+                    cache_misses += 1
+
+        per_record, aggregate = self._harness.evaluate_batch(
+            pipeline_results
+        )
+
+        elapsed = time.perf_counter() - start_time
+        timestamp = datetime.now().isoformat()
+
+        run_result = RunResult(
+            run_id=run_config.run_id,
+            pipeline_config=pc,
+            aggregate_metrics=aggregate,
+            per_record_metrics=list(per_record),
+            cache_hits=cache_hits,
+            cache_misses=cache_misses,
+            total_wall_time_s=elapsed,
+            timestamp=timestamp,
+        )
+
+        if save_artifacts:
+            self._save_run_artifacts(
+                run_config, run_result, pipeline_results
+            )
+        logger.info(
+            "Run %s complete (async): hits=%d misses=%d wall=%.1fs",
+            run_config.run_id,
+            cache_hits,
+            cache_misses,
+            elapsed,
         )
         return run_result
 

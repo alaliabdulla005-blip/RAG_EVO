@@ -47,9 +47,11 @@ class BM25Retriever:
         if not chunks:
             raise ValueError("chunks must be non-empty.")
         self._chunks = chunks
-        corpus_tokens = bm25s.tokenize([c.text for c in chunks])
+        corpus_tokens = bm25s.tokenize(
+            [c.text for c in chunks], show_progress=False
+        )
         self._bm25 = bm25s.BM25(k1=1.5, b=0.75)
-        self._bm25.index(corpus_tokens)
+        self._bm25.index(corpus_tokens, show_progress=False)
 
     def retrieve(
         self,
@@ -74,9 +76,11 @@ class BM25Retriever:
         if not query.strip():
             raise ValueError("query must not be empty or whitespace only.")
 
-        query_tokens = bm25s.tokenize([query])
+        query_tokens = bm25s.tokenize([query], show_progress=False)
         k = min(top_k, len(self._chunks))
-        results, scores = self._bm25.retrieve(query_tokens, k=k)
+        results, scores = self._bm25.retrieve(
+            query_tokens, k=k, show_progress=False
+        )
         indices = results[0]
         score_vals = scores[0]
         retrieved: list[tuple[Chunk, float]] = [
