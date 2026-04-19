@@ -366,13 +366,13 @@ class ExperimentRunner:
                 )
                 self._cache.set(cache_key, result)
                 return result, False
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "Skipping record %s: %s",
+            except Exception as exc:
+                logger.error(
+                    "Record %s failed (async): %s — failing individual",
                     record.record_id,
                     exc,
                 )
-                return None, False
+                raise
 
     async def _run_async(
         self,
@@ -461,29 +461,38 @@ class ExperimentRunner:
                     timeout=record_timeout,
                 )
             except asyncio.TimeoutError:
-                logger.warning(
-                    "Record %s timed out after %.0fs — skipping",
+                logger.error(
+                    "Record %s timed out after %.0fs — failing individual",
                     record.record_id,
                     record_timeout,
                 )
-                return None, False
+                raise
 
         tasks = [
             _eval_with_timeout(record)
             for record in run_config.qa_records
         ]
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        errors = [r for r in results if isinstance(r, BaseException)]
+        if errors:
+            for e in errors[:3]:
+                logger.error("Async record error: %r", e)
+            raise RuntimeError(
+                f"Async record eval failed on {len(errors)}/"
+                f"{len(run_config.qa_records)} records — "
+                "failing individual"
+            )
 
         pipeline_results: list[PipelineResult] = []
         cache_hits = 0
         cache_misses = 0
         for result, is_hit in results:
-            if result is not None:
-                pipeline_results.append(result)
-                if is_hit:
-                    cache_hits += 1
-                else:
-                    cache_misses += 1
+            pipeline_results.append(result)
+            if is_hit:
+                cache_hits += 1
+            else:
+                cache_misses += 1
 
         per_record, aggregate = self._harness.evaluate_batch(
             pipeline_results
