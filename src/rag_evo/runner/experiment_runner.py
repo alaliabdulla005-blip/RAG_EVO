@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 # LRU ceiling on the in-memory BM25/dense index cache. On 8 GB Macs the
 # default 24 is safe for CUAD (~120 chunks/index) but exceeds available
 # RAM for HotpotQA (~hundreds of thousands of chunks/index) — the QA
-# scripts set INDEX_CACHE_MAX=4 to trade rebuilds for headroom and avoid
+# scripts set INDEX_CACHE_MAX=6 to trade rebuilds for headroom and avoid
 # jetsam OOM kills.
 _INDEX_CACHE_MAX = int(os.environ.get("INDEX_CACHE_MAX", "24"))
 
