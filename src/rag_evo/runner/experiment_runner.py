@@ -273,10 +273,13 @@ class ExperimentRunner:
                     self._cache.set(cache_key, result)
                     pipeline_results.append(result)
                     cache_misses += 1
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning(
-                        "Skipping record %s: %s", record.record_id, exc
+                except Exception as exc:
+                    logger.error(
+                        "Record %s failed: %s — failing individual",
+                        record.record_id,
+                        exc,
                     )
+                    raise
 
         per_record, aggregate = self._harness.evaluate_batch(pipeline_results)
 
