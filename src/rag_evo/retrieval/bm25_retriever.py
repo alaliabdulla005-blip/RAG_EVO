@@ -47,9 +47,10 @@ class BM25Retriever:
         if not chunks:
             raise ValueError("chunks must be non-empty.")
         self._chunks = chunks
-        corpus_tokens = bm25s.tokenize(
-            [c.text for c in chunks], show_progress=False
-        )
+        # Whitespace tokenisation reproduces Phase 13's rank_bm25 behaviour.
+        # bm25s.tokenize defaults apply Snowball stemming + English stopword
+        # removal which collapse discriminative signal on short CUAD queries.
+        corpus_tokens = [c.text.split() for c in chunks]
         self._bm25 = bm25s.BM25(k1=1.5, b=0.75)
         self._bm25.index(corpus_tokens, show_progress=False)
 
@@ -76,17 +77,30 @@ class BM25Retriever:
         if not query.strip():
             raise ValueError("query must not be empty or whitespace only.")
 
-        query_tokens = bm25s.tokenize([query], show_progress=False)
-        k = min(top_k, len(self._chunks))
+        # Retrieve all chunks, then apply Python's stable descending sort.
+        # CUAD queries are 1-3 tokens so most chunks share a zero BM25 score;
+        # the gold chunk is often among them. Phase 13 used rank_bm25 with
+        # sorted(..., reverse=True) which is stable on input order — gold
+        # chunks placed early in the corpus list landed in the top-k among
+        # ties. bm25s.retrieve's internal partial selection breaks ties
+        # differently and pushed gold past top-k, collapsing r_norm from
+        # 0.94 to 0.18 on legal. Reproduce Phase 13 ordering exactly.
+        query_tokens = [query.split()]
+        n_chunks = len(self._chunks)
         results, scores = self._bm25.retrieve(
-            query_tokens, k=k, show_progress=False
+            query_tokens, k=n_chunks, show_progress=False
         )
-        indices = results[0]
-        score_vals = scores[0]
-        retrieved: list[tuple[Chunk, float]] = [
-            (self._chunks[int(indices[i])], float(score_vals[i]))
-            for i in range(k)
+        score_by_idx = {
+            int(results[0][i]): float(scores[0][i])
+            for i in range(n_chunks)
+        }
+        paired: list[tuple[Chunk, float]] = [
+            (self._chunks[i], score_by_idx.get(i, 0.0))
+            for i in range(n_chunks)
         ]
+        paired.sort(key=lambda x: x[1], reverse=True)
+        k = min(top_k, n_chunks)
+        retrieved = paired[:k]
         return RetrievalResult(
             query=query,
             retrieved_chunks=retrieved,
