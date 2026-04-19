@@ -36,6 +36,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(".env"))
 
 os.environ["SNAP_CACHE_KEYS"] = "1"
+os.environ["INDEX_CACHE_MAX"] = "4"
 
 from rag_evo.cache.cache import ResultCache
 from rag_evo.config.schema import FullV2Config

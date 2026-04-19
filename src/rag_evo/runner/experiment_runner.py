@@ -39,7 +39,12 @@ from rag_evo.retrieval.retriever_factory import RetrieverConfig, build_retriever
 
 logger = logging.getLogger(__name__)
 
-_INDEX_CACHE_MAX = 24
+# LRU ceiling on the in-memory BM25/dense index cache. On 8 GB Macs the
+# default 24 is safe for CUAD (~120 chunks/index) but exceeds available
+# RAM for HotpotQA (~hundreds of thousands of chunks/index) — the QA
+# scripts set INDEX_CACHE_MAX=4 to trade rebuilds for headroom and avoid
+# jetsam OOM kills.
+_INDEX_CACHE_MAX = int(os.environ.get("INDEX_CACHE_MAX", "24"))
 
 # Snap overlap to these discrete values for index cache efficiency.
 # Continuous overlap [0.0, 0.5] produces unique cache keys for every
