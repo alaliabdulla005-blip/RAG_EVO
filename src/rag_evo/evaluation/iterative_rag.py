@@ -204,7 +204,7 @@ def run_iterative_rag(
         })
 
     # ── Evaluate ──────────────────────────────────────────────────────────────
-    _, aggregate = harness.evaluate_batch(pipeline_results)
+    per_record_metrics, aggregate = harness.evaluate_batch(pipeline_results)
     components = compute_fitness_components(aggregate, fitness_weights)
 
     n_round2 = sum(1 for d in per_record_details if d["round_used"] == 2)
@@ -239,7 +239,16 @@ def run_iterative_rag(
             "mean_latency_ms": aggregate.mean_latency_ms,
         },
         "fitness": components.fitness,
+        "components": {
+            "q_norm": components.q_norm,
+            "g_norm": components.g_norm,
+            "r_norm": components.r_norm,
+            "c_norm": components.c_norm,
+            "l_norm": components.l_norm,
+        },
         "n_records": n,
         "n_round2_triggered": n_round2,
         "per_record": per_record_details,
+        "per_record_metrics": per_record_metrics,
+        "predictions": [d["final_answer"] for d in per_record_details],
     }
