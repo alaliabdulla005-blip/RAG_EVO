@@ -2,14 +2,16 @@
 
 Offline research framework using a scalar-weighted genetic algorithm to optimise
 Retrieval-Augmented Generation pipelines. Evaluation targets: HotpotQA (general QA)
-and CUAD / ContractNLI (legal QA). Generator: Llama-3.1-8B-Instruct via HuggingFace
-Inference Endpoints.
+and CUAD (legal QA). Generator: Llama-3.1-8B-Instruct served via
+DeepInfra (primary, Phase 16) or SambaNova Cloud (legacy, Phases 10–15). Provider
+selected via the INFERENCE_PROVIDER environment variable.
 
 ---
 
 ## Setup
 
 ```bash
+# Requires Python 3.10 or newer (tested on 3.10, 3.11)
 git clone https://github.com/psyaa33/RAG_EVO.git
 cd RAG_EVO
 python3.10 -m venv .venv
@@ -17,7 +19,11 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install -e .
 cp .env.example .env
-# Edit .env and add your HF_TOKEN
+# Edit .env and fill in ONE of the following:
+#   INFERENCE_PROVIDER=deepinfra  + DEEPINFRA_API_KEY=<your key>
+# Note: SambaNova is no longer supported — their
+# Llama-3.1-8B-Instruct endpoint was deprecated
+# April 2026.
 python -m rag_evo.utils.verify_setup
 ```
 
@@ -43,7 +49,7 @@ ruff check . --fix
 
 All evaluation scripts require:
 - Package installed in dev mode (`pip install -e .`)
-- `.env` with `INFERENCE_PROVIDER=sambanova` and `SAMBANOVA_API_KEY`
+- `.env` with `INFERENCE_PROVIDER=deepinfra` and `DEEPINFRA_API_KEY` set — SambaNova is no longer supported as their Llama-3.1-8B-Instruct endpoint was deprecated in April 2026
 - Debug subsets present in `data/processed/` (150 records each)
 
 ### Development set baselines (records 0-49)
@@ -56,7 +62,7 @@ python scripts/run_iterative_rag_legal.py
 python scripts/run_cross_track_transfer.py
 ```
 
-### Held-out evaluation (records 50-149)
+### Held-out evaluation (records 100–399 for General-QA and records 50–349 for Legal (n=300 per track))
 
 ```bash
 python scripts/run_held_out_complete.py
@@ -102,14 +108,16 @@ python scripts/generate_cross_track_table.py
 
 SambaNova deprecated Meta-Llama-3.1-8B-Instruct on 2026-04-14. Phase 16
 migrates to DeepInfra (FP8, $0.02/M input, no daily token ceiling) with an
-8-gene `FullV2Config` chromosome and 3 independent seeds per track.
+8-gene `FullV2Config` chromosome and 3 independent seeds on General-QA and 1 seed on Legal (seeds 123 and 7 for Legal were deferred due to API budget constraints following the provider migration).
 
 ### Provider setup
 
 ```bash
 # Set INFERENCE_PROVIDER=deepinfra in .env
 # Add DEEPINFRA_API_KEY (get from deepinfra.com/dash/api_keys)
-# Add GROQ_API_KEY for RAGAS faithfulness judge
+# RAGAS faithfulness judge uses Llama-3.3-70B-Instruct-Turbo
+# via DeepInfra — no separate key needed,
+# DEEPINFRA_API_KEY is reused.
 ```
 
 ### Reproduction steps (in order)
@@ -118,29 +126,27 @@ migrates to DeepInfra (FP8, $0.02/M input, no daily token ceiling) with an
 # 1. Provider calibration (verify DeepInfra ≈ SambaNova ±3%)
 INFERENCE_PROVIDER=deepinfra python scripts/run_provider_calibration.py
 
-# 2. Pre-build dense FAISS indexes
-python scripts/build_dense_indexes.py
-
-# 3. GA search — General-QA (3 seeds, run sequentially or in parallel)
+# 2. GA search — General-QA (3 seeds, run sequentially or in parallel)
 INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_general_qa_seed42.py
 INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_general_qa_seed123.py
 INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_general_qa_seed7.py
 
-# 4. GA search — Legal (3 seeds)
+# 3. GA search — Legal (3 seeds)
 INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_legal_seed42.py
-INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_legal_seed123.py
-INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_legal_seed7.py
+# Note: Legal seeds 123 and 7 were not completed
+# due to API budget constraints following the
+# provider migration. Only seed 42 is reproduced.
 
-# 5. Held-out evaluation (all systems, BERTScore)
+# 4. Held-out evaluation (all systems, BERTScore)
 INFERENCE_PROVIDER=deepinfra python scripts/run_held_out_phase16.py
 
-# 6. RAGAS Faithfulness (Groq 70B judge)
+# 5. RAGAS Faithfulness (Llama-3.3-70B-Instruct-Turbo via DeepInfra)
 python scripts/run_ragas_faithfulness.py
 
-# 7. Statistical analysis
+# 6. Statistical analysis
 python scripts/run_statistical_analysis.py
 
-# 8. Generate figures
+# 7. Generate figures
 python scripts/generate_phase16_figures.py
 ```
 
@@ -148,14 +154,15 @@ python scripts/generate_phase16_figures.py
 
 | Component | Est. tokens | Cost |
 |-----------|------------|------|
-| 6 GA runs (pop=50 x gen=100) | ~5B input | ~$100 |
-| Held-out evaluation | ~500M | ~$10 |
-| RAGAS Faithfulness (Groq) | minimal | free tier |
-| **Total** | | **~$110** |
+| 3 QA GA runs (pop=50 x gen=100) | ~1.5B input | ~$30 |
+| 1 Legal GA run (pop=50 x gen=100) | ~200M | ~$4 |
+| Held-out evaluation (n=300 per track) | ~500M | ~$10 |
+| RAGAS Faithfulness (DeepInfra 70B) | ~50M | ~$1 |
+| **Total** | | **~$45** |
 
 ### Expected wall clock
 
-~12 hours total (6 GA runs at ~2h each, sequential).
+~8 hours total (3 QA GA runs at ~2h each, 1 Legal GA run at ~2h).
 Checkpoint/resume: safe to interrupt and restart any GA script.
 
 ### Phase 16 output locations

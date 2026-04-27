@@ -1,16 +1,22 @@
-"""RAGAS Faithfulness evaluation using Groq 70B judge.
+"""RAGAS Faithfulness evaluation using DeepInfra 70B judge.
 
 Computes faithfulness scores for all Phase 16 held-out results using
-llama-3.3-70b-versatile as an independent judge to reduce self-preference
-bias. Processes in batches of 10 with 2s sleep between batches.
-Saves incrementally and resumes from the last saved batch.
+meta-llama/Llama-3.3-70B-Instruct-Turbo (served by DeepInfra) as an
+independent judge. Processes in batches of 10 with a 2s sleep between
+batches, and checkpoints to ragas_faithfulness_partial.json after every
+batch so an interrupted run loses at most one batch.
+
+The generator under evaluation is Llama-3.1-8B on DeepInfra too, but at a
+different parameter scale and instruction-tuning, so 70B-judging-8B still
+provides meaningful signal against self-preference bias at the cost of
+being same-provider.
 
 DO NOT run this script automatically — run after held-out evaluation.
 
 Run from project root:
     python scripts/run_ragas_faithfulness.py
 
-Requires GROQ_API_KEY in .env.
+Requires DEEPINFRA_API_KEY in .env.
 Output: results/phase16/ragas_faithfulness.json
 """
 
@@ -25,7 +31,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(".env"))
 
-import groq
+import openai
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,8 +41,8 @@ logger = logging.getLogger(__name__)
 
 # ── Paths ──────────────────────────────────────────────────────────────────
 HELD_OUT_PATH = Path("results/phase16/held_out_phase16.json")
-HELD_OUT_RUNS_GENERAL = Path("results/phase16/held_out_general_runs")
-HELD_OUT_RUNS_LEGAL = Path("results/phase16/held_out_legal_runs")
+HELD_OUT_RUNS_GENERAL = Path("results/phase16/held_out_phase16_general_runs")
+HELD_OUT_RUNS_LEGAL = Path("results/phase16/held_out_phase16_legal_runs")
 
 OUT_PATH = Path("results/phase16/ragas_faithfulness.json")
 TEMP_PATH = Path("results/phase16/ragas_faithfulness_partial.json")
@@ -45,10 +51,44 @@ BATCH_SIZE = 10
 SLEEP_BETWEEN_BATCHES = 2.0
 N_SAMPLES_PER_SYSTEM = 50
 
+TARGET_SYSTEMS: dict[str, list[str]] = {
+    "general_qa": ["GA-P16-QA-S42", "P12-Best", "Naive-RAG", "Iterative-RAG"],
+    "legal": ["GA-P16-Legal-S42", "P13-Best", "Naive-RAG", "Iterative-RAG"],
+}
+
+# (track, system_name) -> run_id directory under held_out_phase16_{track}_runs.
+# Direct-LLM and Iterative-RAG do not persist a pipeline_results.jsonl and so
+# cannot be scored — they have no entry here.
+RUN_DIR_MAP: dict[tuple[str, str], str] = {
+    ("general_qa", "Naive-RAG"): "naive_rag_held_out_general",
+    ("general_qa", "Conservative-RAG"): "conservative_rag_held_out_general",
+    ("general_qa", "P12-Best"): "p12_best_held_out_general",
+    ("general_qa", "P13-Best-on-QA"): "p13_best_on_qa_held_out_general",
+    ("general_qa", "GA-P16-QA-S42"): "ga_p16_qa_s42_held_out_general",
+    ("general_qa", "GA-P16-QA-S123"): "ga_p16_qa_s123_held_out_general",
+    ("general_qa", "GA-P16-QA-S7"): "ga_p16_qa_s7_held_out_general",
+    ("general_qa", "GA-P16-Legal-S42-on-QA"): "ga_p16_legal_s42_on_qa_held_out_general",
+    ("legal", "Naive-RAG"): "naive_rag_held_out_legal",
+    ("legal", "Conservative-RAG"): "conservative_rag_held_out_legal",
+    ("legal", "P12-Best-on-Legal"): "p12_best_on_legal_held_out_legal",
+    ("legal", "P13-Best"): "p13_best_held_out_legal",
+    ("legal", "GA-P16-Legal-S42"): "ga_p16_legal_s42_held_out_legal",
+    ("legal", "GA-P16-QA-S42-on-Legal"): "ga_p16_qa_s42_on_legal_held_out_legal",
+    ("legal", "GA-P16-QA-S123-on-Legal"): "ga_p16_qa_s123_on_legal_held_out_legal",
+    ("legal", "GA-P16-QA-S7-on-Legal"): "ga_p16_qa_s7_on_legal_held_out_legal",
+    ("general_qa", "Iterative-RAG"): "iterative_rag_held_out_general",
+    ("legal", "Iterative-RAG"): "iterative_rag_held_out_legal",
+}
+
 # ── Judge client ───────────────────────────────────────────────────────────
-judge_client = groq.Groq(api_key=os.environ["GROQ_API_KEY"])
+# DeepInfra exposes an OpenAI-compatible endpoint, so we use the openai SDK
+# with a pinned base_url and the DeepInfra API key.
+judge_client = openai.OpenAI(
+    api_key=os.environ["DEEPINFRA_API_KEY"],
+    base_url="https://api.deepinfra.com/v1/openai",
+)
 judge_model = os.environ.get(
-    "GROQ_JUDGE_MODEL_ID", "llama-3.3-70b-versatile"
+    "DEEPINFRA_JUDGE_MODEL_ID", "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 )
 
 
@@ -56,7 +96,7 @@ def _score_faithfulness(
     question: str,
     answer: str,
     context: str,
-    client: groq.Groq,
+    client: openai.OpenAI,
     model: str,
 ) -> float:
     """Score faithfulness of an answer given context using LLM judge.
@@ -118,72 +158,39 @@ def _load_pipeline_results(runs_dir: Path, run_id: str) -> list[dict]:
     return results
 
 
-def _find_run_id_for_system(
-    system_name: str, runs_dir: Path
-) -> str | None:
-    """Derive the run_id directory name from the system name.
-
-    The held-out evaluation scripts use a naming convention for run_ids.
-    We look for any directory in runs_dir that contains pipeline_results.jsonl
-    and match by checking the config.json inside against the system name.
-
-    Falls back to scanning all subdirectories and matching system name
-    in run_summary.json or config.json.
-    """
-    if not runs_dir.exists():
-        return None
-    for run_dir in sorted(runs_dir.iterdir()):
-        if not run_dir.is_dir():
-            continue
-        jsonl = run_dir / "pipeline_results.jsonl"
-        if jsonl.exists():
-            return run_dir.name
-    return None
-
-
 def _collect_system_results(
-    systems: list[dict], runs_dir: Path
-) -> list[tuple[str, list[dict]]]:
-    """For each system, find and load its pipeline results.
+    track: str, targets: list[str], runs_dir: Path
+) -> list[tuple[str, list[dict] | None]]:
+    """Resolve each target system to (name, pipeline_results) or (name, None).
 
-    Returns list of (system_name, pipeline_results) tuples.
-    Only includes systems for which pipeline_results.jsonl was found.
+    Looks up (track, name) in RUN_DIR_MAP; systems with no mapping (e.g.
+    Direct-LLM, Iterative-RAG) yield None to be reported as unavailable.
     """
-    collected: list[tuple[str, list[dict]]] = []
-    # Get all run directories sorted
-    if not runs_dir.exists():
-        logger.warning("Runs directory not found: %s", runs_dir)
-        return collected
-
-    run_dirs = sorted(
-        [d for d in runs_dir.iterdir() if d.is_dir()],
-        key=lambda d: d.name,
-    )
-
-    # Match systems to run directories in order — the held-out evaluation
-    # scripts create one run directory per system in evaluation order.
-    for i, system in enumerate(systems):
-        name = system["name"]
-        if i < len(run_dirs):
-            run_dir = run_dirs[i]
-            jsonl = run_dir / "pipeline_results.jsonl"
-            if jsonl.exists():
-                results = _load_pipeline_results(runs_dir, run_dir.name)
-                collected.append((name, results))
-                logger.info(
-                    "Loaded %d pipeline results for '%s' from %s",
-                    len(results), name, run_dir.name,
-                )
-            else:
-                logger.warning(
-                    "No pipeline_results.jsonl in %s for system '%s'",
-                    run_dir, name,
-                )
-        else:
+    collected: list[tuple[str, list[dict] | None]] = []
+    for name in targets:
+        run_id = RUN_DIR_MAP.get((track, name))
+        if run_id is None:
             logger.warning(
-                "No run directory found for system '%s' (index %d)",
-                name, i,
+                "No pipeline_results for '%s' (%s) — system kind does not "
+                "persist retrieved context; will be reported as unavailable.",
+                name, track,
             )
+            collected.append((name, None))
+            continue
+        jsonl = runs_dir / run_id / "pipeline_results.jsonl"
+        if not jsonl.exists():
+            logger.warning(
+                "pipeline_results.jsonl missing at %s for '%s' — marking "
+                "unavailable.", jsonl, name,
+            )
+            collected.append((name, None))
+            continue
+        results = _load_pipeline_results(runs_dir, run_id)
+        logger.info(
+            "Loaded %d pipeline results for '%s' from %s",
+            len(results), name, run_id,
+        )
+        collected.append((name, results))
     return collected
 
 
@@ -191,6 +198,7 @@ def _score_system(
     system_name: str,
     pipeline_results: list[dict],
     partial_scores: list[float] | None,
+    on_batch: "callable | None" = None,
 ) -> list[float]:
     """Score faithfulness for first N_SAMPLES_PER_SYSTEM records of a system.
 
@@ -241,6 +249,8 @@ def _score_system(
             "  '%s': scored %d/%d records",
             system_name, abs_idx, n_total,
         )
+        if on_batch is not None:
+            on_batch(list(scores))
 
         # Sleep between batches (not after the last one)
         if batch_start + BATCH_SIZE < len(remaining):
@@ -290,14 +300,7 @@ def main() -> None:
         )
         sys.exit(1)
 
-    held_out = json.loads(HELD_OUT_PATH.read_text(encoding="utf-8"))
-    logger.info("Loaded held-out results from %s", HELD_OUT_PATH)
-
-    general_systems = held_out.get("general_qa", {}).get("systems", [])
-    legal_systems = held_out.get("legal", {}).get("systems", [])
-
-    print(f"General-QA systems: {len(general_systems)}")
-    print(f"Legal systems: {len(legal_systems)}")
+    logger.info("Held-out results path confirmed: %s", HELD_OUT_PATH)
 
     # ── Load partial results for resume ────────────────────────────────────
     partial = _load_partial()
@@ -310,63 +313,70 @@ def main() -> None:
         "legal": {"systems": []},
     }
 
-    # ── General-QA track ───────────────────────────────────────────────────
-    print(f"\n{'=' * 65}")
-    print("RAGAS Faithfulness — General-QA track")
-    print(f"{'=' * 65}")
+    runs_by_track = {
+        "general_qa": HELD_OUT_RUNS_GENERAL,
+        "legal": HELD_OUT_RUNS_LEGAL,
+    }
 
-    general_collected = _collect_system_results(
-        general_systems, HELD_OUT_RUNS_GENERAL
-    )
+    for track in ("general_qa", "legal"):
+        print(f"\n{'=' * 65}")
+        print(f"RAGAS Faithfulness — {track}")
+        print(f"{'=' * 65}")
 
-    for system_name, pipeline_results in general_collected:
-        partial_scores = _get_partial_scores(
-            partial, "general_qa", system_name
-        )
-        scores = _score_system(system_name, pipeline_results, partial_scores)
-        mean_faith = sum(scores) / len(scores) if scores else 0.0
-
-        output["general_qa"]["systems"].append({
-            "name": system_name,
-            "mean_faithfulness": round(mean_faith, 4),
-            "scores": scores,
-        })
-        print(
-            f"  {system_name}: mean_faithfulness={mean_faith:.4f} "
-            f"({len(scores)} samples)"
+        targets = TARGET_SYSTEMS[track]
+        collected = _collect_system_results(
+            track, targets, runs_by_track[track]
         )
 
-        # Incremental save after each system
-        _save_partial(output)
+        for system_name, pipeline_results in collected:
+            if pipeline_results is None:
+                output[track]["systems"].append({
+                    "name": system_name,
+                    "mean_faithfulness": None,
+                    "scores": [],
+                    "note": "unavailable: no persisted pipeline_results.jsonl",
+                })
+                print(
+                    f"  {system_name}: UNAVAILABLE "
+                    f"(no persisted retrieved_chunks)"
+                )
+                _save_partial(output)
+                continue
 
-    # ── Legal track ────────────────────────────────────────────────────────
-    print(f"\n{'=' * 65}")
-    print("RAGAS Faithfulness — Legal track")
-    print(f"{'=' * 65}")
+            partial_scores = _get_partial_scores(
+                partial, track, system_name
+            )
 
-    legal_collected = _collect_system_results(
-        legal_systems, HELD_OUT_RUNS_LEGAL
-    )
+            # Add a placeholder entry so per-batch checkpoints mutate in place.
+            entry: dict = {
+                "name": system_name,
+                "mean_faithfulness": None,
+                "scores": list(partial_scores) if partial_scores else [],
+            }
+            output[track]["systems"].append(entry)
 
-    for system_name, pipeline_results in legal_collected:
-        partial_scores = _get_partial_scores(
-            partial, "legal", system_name
-        )
-        scores = _score_system(system_name, pipeline_results, partial_scores)
-        mean_faith = sum(scores) / len(scores) if scores else 0.0
+            def _checkpoint(new_scores: list[float]) -> None:
+                entry["scores"] = new_scores
+                entry["mean_faithfulness"] = (
+                    round(sum(new_scores) / len(new_scores), 4)
+                    if new_scores else 0.0
+                )
+                _save_partial(output)
 
-        output["legal"]["systems"].append({
-            "name": system_name,
-            "mean_faithfulness": round(mean_faith, 4),
-            "scores": scores,
-        })
-        print(
-            f"  {system_name}: mean_faithfulness={mean_faith:.4f} "
-            f"({len(scores)} samples)"
-        )
+            scores = _score_system(
+                system_name, pipeline_results, partial_scores,
+                on_batch=_checkpoint,
+            )
+            mean_faith = sum(scores) / len(scores) if scores else 0.0
 
-        # Incremental save after each system
-        _save_partial(output)
+            entry["mean_faithfulness"] = round(mean_faith, 4)
+            entry["scores"] = scores
+            print(
+                f"  {system_name}: mean_faithfulness={mean_faith:.4f} "
+                f"({len(scores)} samples)"
+            )
+
+            _save_partial(output)
 
     # ── Finalise ───────────────────────────────────────────────────────────
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -384,16 +394,15 @@ def main() -> None:
     print(f"\n{'=' * 65}")
     print(f"{'System':<32} | {'Track':<12} | {'Faithfulness':>12}")
     print("-" * 65)
-    for sys_entry in output["general_qa"]["systems"]:
-        print(
-            f"{sys_entry['name']:<32} | {'General-QA':<12} "
-            f"| {sys_entry['mean_faithfulness']:>12.4f}"
-        )
-    for sys_entry in output["legal"]["systems"]:
-        print(
-            f"{sys_entry['name']:<32} | {'Legal':<12} "
-            f"| {sys_entry['mean_faithfulness']:>12.4f}"
-        )
+    for track_key, track_label in (
+        ("general_qa", "General-QA"), ("legal", "Legal")
+    ):
+        for sys_entry in output[track_key]["systems"]:
+            mf = sys_entry["mean_faithfulness"]
+            mf_str = f"{mf:>12.4f}" if isinstance(mf, float) else f"{'N/A':>12}"
+            print(
+                f"{sys_entry['name']:<32} | {track_label:<12} | {mf_str}"
+            )
     print(f"{'=' * 65}")
     print(f"Judge model: {judge_model}")
     print(f"Samples per system: {N_SAMPLES_PER_SYSTEM}")

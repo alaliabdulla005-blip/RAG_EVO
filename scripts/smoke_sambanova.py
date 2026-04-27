@@ -1,5 +1,6 @@
-"""Smoke test for SambaNova / Groq provider in GeneratorWrapper.
-Run from project root: python scripts/smoke_sambanova.py
+""""Smoke test for GeneratorWrapper — originally used with
+SambaNova (deprecated April 2026); now runs against
+INFERENCE_PROVIDER env var."
 """
 
 from pathlib import Path

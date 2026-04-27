@@ -17,7 +17,7 @@ from rag_evo.pipeline.prompt_builder import (
     SYSTEM_PROMPT_CHAIN_OF_THOUGHT,
     build_context_block,
 )
-from rag_evo.pipeline.rag_pipeline import PipelineResult
+from rag_evo.pipeline.rag_pipeline import PipelineResult, save_results
 from rag_evo.retrieval.retriever_factory import RetrieverConfig, build_retriever
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,8 @@ def run_iterative_rag(
     harness: EvaluationHarness,
     cache_dir: Path,  # noqa: ARG001 — accepted for interface consistency, unused in v1
     fitness_weights: FitnessWeights,
+    results_dir: Path | None = None,
+    run_id: str | None = None,
 ) -> dict:
     """Run 2-round adaptive retrieval evaluation on a list of records.
 
@@ -62,6 +64,12 @@ def run_iterative_rag(
         harness: EvaluationHarness bound to *qa_records*.
         cache_dir: Reserved for future result caching; unused in v1.
         fitness_weights: Weights for scalar fitness computation.
+        results_dir: Optional root directory under which pipeline_results.jsonl
+            will be written when ``run_id`` is also provided. Used to make
+            Iterative-RAG compatible with downstream tooling (e.g. RAGAS
+            faithfulness) that reads pipeline_results.jsonl.
+        run_id: Optional subdirectory name under ``results_dir``. The jsonl is
+            written to ``results_dir / run_id / "pipeline_results.jsonl"``.
 
     Returns:
         Summary dict with keys: ``system``, ``config``, ``metrics``,
@@ -202,6 +210,13 @@ def run_iterative_rag(
             "output_tokens": final_output_tokens,
             "latency_ms": final_latency_ms,
         })
+
+    if results_dir is not None and run_id is not None:
+        out_path = results_dir / run_id / "pipeline_results.jsonl"
+        save_results(pipeline_results, out_path)
+        logger.info(
+            "Wrote %d PipelineResults to %s", len(pipeline_results), out_path
+        )
 
     # ── Evaluate ──────────────────────────────────────────────────────────────
     per_record_metrics, aggregate = harness.evaluate_batch(pipeline_results)

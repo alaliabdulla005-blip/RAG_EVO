@@ -139,8 +139,16 @@ logger = logging.getLogger(__name__)
 
 
 # ── BERTScore ───────────────────────────────────────────────────────────────
+# Tuned for 8 GB RAM: CPU device (MPS double-buffering OOMs), batch=1, seq=256.
+_BS_MAX_SEQ_LEN = 256
+_BS_BATCH_SIZE = 1
+_BS_DEVICE = "cpu"
+
+
 def _compute_bertscore(predictions: list[str], references: list[str]) -> float:
     """Compute mean BERTScore F1 using microsoft/deberta-xlarge-mnli."""
+    import gc
+
     try:
         from bert_score import score as bert_score_fn
     except ImportError:
@@ -153,14 +161,36 @@ def _compute_bertscore(predictions: list[str], references: list[str]) -> float:
         )
         from bert_score import score as bert_score_fn
 
+    # DeBERTa ships with model_max_length set to a ~10^30 sentinel that
+    # overflows when the Rust tokenizers backend calls enable_truncation.
+    # Clamp to _BS_MAX_SEQ_LEN on first use so sent_encode passes a sane
+    # value to tokenizer.encode; this also quarters attention memory vs 510.
+    import bert_score.utils as _bsu
+
+    if not getattr(_bsu, "_rag_evo_patched", False):
+        _orig_sent_encode = _bsu.sent_encode
+
+        def _patched_sent_encode(tokenizer, a):  # type: ignore[no-redef]
+            if getattr(tokenizer, "model_max_length", 0) > _BS_MAX_SEQ_LEN:
+                tokenizer.model_max_length = _BS_MAX_SEQ_LEN
+            return _orig_sent_encode(tokenizer, a)
+
+        _bsu.sent_encode = _patched_sent_encode
+        _bsu._rag_evo_patched = True
+
     _, _, f1 = bert_score_fn(
         predictions,
         references,
         model_type="microsoft/deberta-xlarge-mnli",
-        batch_size=16,
+        batch_size=_BS_BATCH_SIZE,
+        device=_BS_DEVICE,
         verbose=False,
     )
-    return f1.mean().item()
+    result = f1.mean().item()
+    # Per-row cleanup to prevent accumulation across 20 systems.
+    del f1
+    gc.collect()
+    return result
 
 
 # ── GA summary loading ─────────────────────────────────────────────────────
@@ -745,8 +775,23 @@ def main() -> int:
         "general_qa": [r.gold_answer for r in general_held_out],
         "legal": [r.gold_answer for r in legal_held_out],
     }
+    # Release Llama wrapper + cross-encoder reranker before loading the
+    # DeBERTa BERTScore model — ~1-2 GB reclaimed on an 8 GB machine.
+    import gc
+    del wrapper, reranker
+    try:
+        import torch
+        if torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+    except ImportError:
+        pass
+    gc.collect()
     print("\n" + "=" * 70)
-    print("BERTScore F1 pass (microsoft/deberta-xlarge-mnli, batch_size=16)")
+    print(
+        f"BERTScore F1 pass (microsoft/deberta-xlarge-mnli, "
+        f"device={_BS_DEVICE}, batch_size={_BS_BATCH_SIZE}, "
+        f"max_seq_len={_BS_MAX_SEQ_LEN})"
+    )
     for track in ("general_qa", "legal"):
         for row in output["results"][track]:
             if row.get("mean_bertscore_f1") is not None:
