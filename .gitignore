@@ -37,6 +37,11 @@ data/raw/*
 !data/raw/.gitkeep
 !data/raw/README.md
 
+# Processed debug subsets are regenerated from data/raw — never tracked
+data/processed/hotpotqa_debug/
+data/processed/legal_debug/
+!data/processed/.gitkeep
+
 # Logs (keep .gitkeep)
 logs/*
 !logs/.gitkeep
