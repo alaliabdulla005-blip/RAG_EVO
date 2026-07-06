@@ -98,9 +98,9 @@ results/phase15/*
 !results/phase15/*.json
 
 # Phase 16 — EC extension (DeepInfra): track finals + GA history,
-# but exclude the corrupted async run
+# but exclude any corrupted runs/summaries (ASYNC, TOKENISER, etc.)
 !results/phase16/
-results/phase16/legal/seed_42_CORRUPTED_ASYNC/
+results/phase16/**/*CORRUPTED*
 
 # MyPy
 .mypy_cache/
