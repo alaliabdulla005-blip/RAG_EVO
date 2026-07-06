@@ -1,0 +1,100 @@
+{
+  "phase": "Phase 16 \u2014 Provider calibration",
+  "config": {
+    "chunk_size": 512,
+    "overlap": 0.0,
+    "top_k": 19,
+    "prompt_strategy": "chain-of-thought",
+    "temperature": 0.6743266807244299
+  },
+  "n_records": 50,
+  "tolerance_pct": 3.0,
+  "deepinfra": {
+    "metrics": {
+      "mean_em": 0.0,
+      "mean_f1": 0.036802976434146456,
+      "mean_citation_precision": 0.5083333333333333,
+      "mean_citation_recall": 0.39,
+      "mean_citation_f1": 0.426,
+      "mean_retrieval_recall_at_k": 0.73,
+      "mean_input_tokens": 2477.52,
+      "mean_latency_ms": 2080.407244102098
+    },
+    "fitness": 0.21771711813263758
+  },
+  "sambanova": {
+    "source": "results/phase12/general_qa/runs/20260410_053803_bf51f56d/aggregate_metrics.json",
+    "metrics": {
+      "mean_em": 0.0,
+      "mean_f1": 0.05870108398209535,
+      "mean_citation_precision": 0.52,
+      "mean_citation_recall": 0.4,
+      "mean_citation_f1": 0.4373333333333334,
+      "mean_retrieval_recall_at_k": 0.73,
+      "mean_input_tokens": 2497.52,
+      "mean_latency_ms": 1036.775267458288
+    },
+    "fitness": 0.24031268091825528
+  },
+  "deltas": [
+    {
+      "metric": "mean_em",
+      "deepinfra": 0.0,
+      "sambanova": 0.0,
+      "abs_delta": 0.0,
+      "pct_delta": 0.0
+    },
+    {
+      "metric": "mean_f1",
+      "deepinfra": 0.036802976434146456,
+      "sambanova": 0.05870108398209535,
+      "abs_delta": -0.021898107547948895,
+      "pct_delta": -37.30443470963522
+    },
+    {
+      "metric": "mean_citation_precision",
+      "deepinfra": 0.5083333333333333,
+      "sambanova": 0.52,
+      "abs_delta": -0.011666666666666714,
+      "pct_delta": -2.2435897435897525
+    },
+    {
+      "metric": "mean_citation_recall",
+      "deepinfra": 0.39,
+      "sambanova": 0.4,
+      "abs_delta": -0.010000000000000009,
+      "pct_delta": -2.500000000000002
+    },
+    {
+      "metric": "mean_citation_f1",
+      "deepinfra": 0.426,
+      "sambanova": 0.4373333333333334,
+      "abs_delta": -0.011333333333333417,
+      "pct_delta": -2.5914634146341653
+    },
+    {
+      "metric": "mean_retrieval_recall_at_k",
+      "deepinfra": 0.73,
+      "sambanova": 0.73,
+      "abs_delta": 0.0,
+      "pct_delta": 0.0
+    },
+    {
+      "metric": "mean_input_tokens",
+      "deepinfra": 2477.52,
+      "sambanova": 2497.52,
+      "abs_delta": -20.0,
+      "pct_delta": -0.8007943880329287
+    },
+    {
+      "metric": "mean_latency_ms",
+      "deepinfra": 2080.407244102098,
+      "sambanova": 1036.775267458288,
+      "abs_delta": 1043.63197664381,
+      "pct_delta": 100.66134960976949
+    }
+  ],
+  "verdict": "FAIL",
+  "f1_pass": false,
+  "citation_f1_pass": true
+}

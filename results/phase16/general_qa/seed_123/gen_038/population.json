@@ -1,0 +1,752 @@
+[
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.302983223966482
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.33833881511074565,
+      "top_k": 16,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2999431335613671,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.300730917136279
+  },
+  {
+    "config": {
+      "chunk_size": 256,
+      "overlap": 0.33531830493443765,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.32433418706691963,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2803724987482202
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.35921009593744946,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.302983223966482
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.3594612404355289,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.302983223966482
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.34805062913935053,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.27151985032765863,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 80,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2816778939037198
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.18972978540175223,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.10433568518742248,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 80,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.28162257304602173
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.428479472668035,
+      "top_k": 17,
+      "prompt_strategy": "zero-shot",
+      "temperature": 0.29700218243662535,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.1883659652601933
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.3594612404355289,
+      "top_k": 18,
+      "prompt_strategy": "chain-of-thought",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2411174768469863
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.1629579868641582,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.025504010678125744,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.27983042850086104
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.31687269578523125,
+      "top_k": 14,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.26671486499042524
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.18972978540175223,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.025504010678125744,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.29442510289069224
+  },
+  {
+    "config": {
+      "chunk_size": 448,
+      "overlap": 0.18972978540175223,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.0,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 96,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2823704728655309
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.45534527712091927,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.15770592159530136,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 80,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2800032564634928
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.18972978540175223,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.025504010678125744,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 96,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.28356816435394916
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.302983223966482
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.35921009593744946,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.35183843977244555,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 80,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.28035573944450787
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.379008410429708,
+      "top_k": 16,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.282474865065662
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.35921009593744946,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.302983223966482
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.302983223966482
+  },
+  {
+    "config": {
+      "chunk_size": 256,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2803724987482202
+  },
+  {
+    "config": {
+      "chunk_size": 384,
+      "overlap": 0.34302389107221576,
+      "top_k": 20,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.30629972488981977,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2915837931005383
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "chain-of-thought",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2411174768469863
+  },
+  {
+    "config": {
+      "chunk_size": 256,
+      "overlap": 0.18972978540175223,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.0,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 80,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2954569247259889
+  },
+  {
+    "config": {
+      "chunk_size": 384,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.28507990087437207
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.3334803903570259,
+      "top_k": 20,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2795605949385324
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.302983223966482
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.42314685486120623,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2957408339744466
+  },
+  {
+    "config": {
+      "chunk_size": 448,
+      "overlap": 0.33833881511074565,
+      "top_k": 17,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.12402028983204025,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.27954977333868697
+  },
+  {
+    "config": {
+      "chunk_size": 256,
+      "overlap": 0.33833881511074565,
+      "top_k": 16,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.28123078888216196
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.34312449533242795,
+      "top_k": 18,
+      "prompt_strategy": "zero-shot",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.20051706558599716
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.3334803903570259,
+      "top_k": 18,
+      "prompt_strategy": "chain-of-thought",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2411174768469863
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.4024375892741284,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.053725868702924125,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2899531700170158
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.3765357407726313,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2957408339744466
+  },
+  {
+    "config": {
+      "chunk_size": 384,
+      "overlap": 0.3765357407726313,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2772322080055186
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.3334803903570259,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.302983223966482
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.33833881511074565,
+      "top_k": 16,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.300730917136279
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.34312449533242795,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.19233237055191066,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2976426545298506
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.3594612404355289,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.40060810826443394,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 96,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.28639133635083236
+  },
+  {
+    "config": {
+      "chunk_size": 448,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2829369300716492
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.3520386165901827,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 80,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2890548622963224
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.15604640359064967,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.27879114204451183
+  },
+  {
+    "config": {
+      "chunk_size": 384,
+      "overlap": 0.34312449533242795,
+      "top_k": 18,
+      "prompt_strategy": "zero-shot",
+      "temperature": 0.30629972488981977,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 96,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.20690946537902946
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.3765357407726313,
+      "top_k": 18,
+      "prompt_strategy": "chain-of-thought",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.23865044340563998
+  },
+  {
+    "config": {
+      "chunk_size": 384,
+      "overlap": 0.3594612404355289,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.2557911391513975,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2805852232259483
+  },
+  {
+    "config": {
+      "chunk_size": 384,
+      "overlap": 0.3765357407726313,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2772322080055186
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 96,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.2718933366589874
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.35921009593744946,
+      "top_k": 18,
+      "prompt_strategy": "zero-shot",
+      "temperature": 0.2956472615456875,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.20051706558599716
+  },
+  {
+    "config": {
+      "chunk_size": 384,
+      "overlap": 0.33833881511074565,
+      "top_k": 18,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.28507990087437207
+  },
+  {
+    "config": {
+      "chunk_size": 512,
+      "overlap": 0.33833881511074565,
+      "top_k": 17,
+      "prompt_strategy": "legal-citation",
+      "temperature": 0.28114109077007243,
+      "retriever_type": "BM25",
+      "reranker_enabled": false,
+      "max_output_tokens": 64,
+      "citations_required": true,
+      "top_p": 1.0
+    },
+    "fitness": 0.29422908330644093
+  }
+]

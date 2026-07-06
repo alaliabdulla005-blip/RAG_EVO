@@ -1,0 +1,27 @@
+{
+  "generation_idx": 19,
+  "best_fitness": 0.300730917136279,
+  "mean_fitness": 0.27304894903769017,
+  "worst_fitness": 0.18974802410663855,
+  "best_config": {
+    "chunk_size": 512,
+    "overlap": 0.3444082281146153,
+    "top_k": 16,
+    "prompt_strategy": "legal-citation",
+    "temperature": 0.3038331371289418,
+    "retriever_type": "BM25",
+    "reranker_enabled": false,
+    "max_output_tokens": 64,
+    "citations_required": true,
+    "top_p": 1.0
+  },
+  "best_components": {
+    "q_norm": 0.05767127836268859,
+    "g_norm": 0.6533333333333335,
+    "r_norm": 0.73,
+    "c_norm": 1.0,
+    "l_norm": 0.28675188417593017,
+    "fitness": 0.300730917136279
+  },
+  "elapsed_s": 823.4864559170092
+}

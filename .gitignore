@@ -46,6 +46,9 @@ data/processed/legal_debug/
 logs/*
 !logs/.gitkeep
 
+# Log files anywhere are large and regenerable — never track
+*.log
+
 # Results (keep .gitkeep and committed artifacts)
 results/*
 !results/.gitkeep
@@ -93,6 +96,11 @@ results/phase14/*
 !results/phase15/
 results/phase15/*
 !results/phase15/*.json
+
+# Phase 16 — EC extension (DeepInfra): track finals + GA history,
+# but exclude the corrupted async run
+!results/phase16/
+results/phase16/legal/seed_42_CORRUPTED_ASYNC/
 
 # MyPy
 .mypy_cache/
