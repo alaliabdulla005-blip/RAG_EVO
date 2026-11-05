@@ -1,206 +1,80 @@
-# RAG-Evo: Evolutionary Optimisation of RAG for General QA and Legal Queries
+# RAG-Evo
 
-Offline research framework using a scalar-weighted genetic algorithm to optimise
-Retrieval-Augmented Generation pipelines. Evaluation targets: HotpotQA (general QA)
-and CUAD (legal QA). Generator: Llama-3.1-8B-Instruct served via
-DeepInfra (primary, Phase 16) or SambaNova Cloud (legacy, Phases 10–15). Provider
-selected via the INFERENCE_PROVIDER environment variable.
+RAG-Evo is a Python research framework for evolutionary tuning of retrieval-augmented generation (RAG). It searches retrieval, prompting and decoding settings for general question answering on HotpotQA and contract question answering on CUAD. The generator is Llama-3.1-8B-Instruct.
 
----
+## Experiment design
+
+The genetic algorithm ranks configurations by a weighted combination of token-level answer F1, citation F1 and retrieval recall, with penalties for input tokens and latency. The legal track gives citation F1 the highest weight. [The fitness implementation](src/rag_evo/ga/fitness.py) clips the penalties at 32,500 total input tokens per evaluation and 5,000 ms mean latency.
+
+Phases 12 and 13 used 20 candidates over 15 generations. Phase 16 used 50 candidates over 100 generations. The final chromosome had eight fields, of which six varied: chunk size, overlap, retrieval depth, prompt strategy, temperature and maximum output tokens. Retrieval stayed fixed to BM25 and reranking stayed off.
+
+| Phase 16 track | Dataset | Development questions | Held-out questions | Completed seeds |
+| --- | --- | ---: | ---: | --- |
+| General QA | HotpotQA, distractor setting | 50 | 300 | 42, 123, 7 |
+| Legal QA | CUAD QA | 50 | 300 | 42 |
+
+The development set uses records 0–49. The final held-out sets use records 100–399 for general QA and 50–349 for legal QA. Earlier held-out comparisons used 100 questions per track.
+
+## Saved results
+
+Composite fitness from the [Phase 16 held-out results](results/phase16/held_out_phase16.json), rounded to three decimal places:
+
+| System | HotpotQA | CUAD QA |
+| --- | ---: | ---: |
+| Direct LLM | −0.051 | −0.032 |
+| Naive RAG | 0.155 | −0.027 |
+| Conservative RAG | 0.134 | −0.027 |
+| Iterative RAG | 0.195 | −0.045 |
+| Earlier native GA configuration (Phase 12 / 13) | 0.233 | 0.053 |
+| Phase 16 native GA configurations | 0.274–0.278 | 0.053 |
+| Phase 16 configuration transferred from the other track | 0.270 | 0.012–0.020 |
+
+On HotpotQA, the saved Phase 16 native configurations score about 77–79% above Naive RAG on composite fitness. On CUAD, the earlier and later native GA configurations both round to 0.053. The earlier one is slightly higher at full precision. The sign of the legal baseline scores depends on the fitness formula. Recomputing with mean input tokens divided by 10,000, as described in the dissertation, would put three of the four baselines above zero.
+
+The [extended metrics](results/phase16/figures/phase16_extended_metrics.png) show a trade-off. On general QA, the seed-42 configuration scores 0.744 for [custom LLM-judged faithfulness](results/phase16/ragas_faithfulness.json), compared with 0.986 for Naive RAG. The judge is Llama-3.3-70B-Instruct-Turbo, with 50 samples per selected system. The [judge script](scripts/run_ragas_faithfulness.py) uses a custom scoring prompt. BERTScore was computed separately on the held-out runs.
+
+## Provider change and interpretation
+
+Phase 16 moved from SambaNova to DeepInfra after the original generator endpoint was retired. On the [50-question calibration](results/phase16/calibration.json), retrieval recall stayed at 0.730 and citation F1 fell from 0.437 to 0.426, a relative change of −2.59%. Answer F1 fell from 0.0587 to 0.0368 and mean latency rose from about 1.04 s to 2.08 s. The overall calibration verdict was a failure.
+
+The dissertation and presentation report $50.31 in total inference spend. The presentation reports about 95 hours for the full experimental programme. Separately, the logged runtimes of the four Phase 16 search runs add up to about 50 hours. Fresh costs and runtimes depend on provider rates, hardware and cache use.
+
+- The Direct LLM run used a context-only prompt without retrieved context. Its scores describe a context-constrained comparison.
+- The held-out entries for QA seeds 123 and 7 have different configurations and identical per-record outputs on both evaluation tracks. The runner can reuse cache entries across settings rounded to the same key. Treat the matching entries on each track as a single set of held-out predictions when interpreting stability.
+- The CUAD loader filters for answerable questions and truncates contract text. The citation metric matches document identifiers. Clause-level support is a separate question.
+- Legal Phase 16 results come from one completed search seed. The final held-out data and code support descriptive comparisons. The statistical script's held-out reader expects a different layout from the saved results.
 
 ## Setup
 
+Use Python 3.10 or newer. From the repository root:
+
 ```bash
-# Requires Python 3.10 or newer (tested on 3.10, 3.11)
-git clone https://github.com/psyaa33/RAG_EVO.git
-cd RAG_EVO
-python3.10 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
-pip install --upgrade pip
-pip install -e .
-cp .env.example .env
-# Edit .env and fill in ONE of the following:
-#   INFERENCE_PROVIDER=deepinfra  + DEEPINFRA_API_KEY=<your key>
-# Note: SambaNova is no longer supported — their
-# Llama-3.1-8B-Instruct endpoint was deprecated
-# April 2026.
-python -m rag_evo.utils.verify_setup
+python -m pip install -e . bm25s pytest ruff
+python -m pytest tests/ -v
 ```
 
----
+On Windows PowerShell, activate the environment with `.\.venv\Scripts\Activate.ps1`. The current BM25 implementation imports `bm25s`, which needs to be installed separately from the package requirements.
 
-## Running tests
+## Inspect or rerun the experiments
 
-```bash
-pytest tests/ -v
-```
-
----
-
-## Code quality
+The saved results and [figures](results/phase16/figures/) can be inspected without a provider key. To regenerate the Phase 16 figures from the saved JSON files, run:
 
 ```bash
-ruff check . --fix
-```
-
----
-
-## Reproducing dissertation results
-
-All evaluation scripts require:
-- Package installed in dev mode (`pip install -e .`)
-- `.env` with `INFERENCE_PROVIDER=deepinfra` and `DEEPINFRA_API_KEY` set — SambaNova is no longer supported as their Llama-3.1-8B-Instruct endpoint was deprecated in April 2026
-- Debug subsets present in `data/processed/` (150 records each)
-
-### Development set baselines (records 0-49)
-
-```bash
-python scripts/run_baseline_comparison.py
-python scripts/run_legal_baselines.py
-python scripts/run_iterative_rag.py
-python scripts/run_iterative_rag_legal.py
-python scripts/run_cross_track_transfer.py
-```
-
-### Held-out evaluation (records 100–399 for General-QA and records 50–349 for Legal (n=300 per track))
-
-```bash
-python scripts/run_held_out_complete.py
-```
-
-### GA search (records 0-49)
-
-```bash
-python scripts/run_phase12_general_qa.py
-python scripts/run_phase13_legal_qa.py
-```
-
-### Ablations
-
-```bash
-python scripts/run_seed_stability.py
-python scripts/run_mutation_ablation.py
-python scripts/run_population_ablation.py
-python scripts/run_temperature_ablation_legal.py
-```
-
-### Figures and tables
-
-```bash
-python scripts/generate_dissertation_figures.py
-python scripts/generate_cross_track_table.py
-```
-
-### Output locations
-
-| Script | Output |
-|--------|--------|
-| `run_baseline_comparison.py` | `results/ablations/baseline_comparison.json` |
-| `run_legal_baselines.py` | `results/phase14/legal_baselines.json` |
-| `run_iterative_rag.py` | `results/ablations/iterative_rag.json` |
-| `run_iterative_rag_legal.py` | `results/phase13/iterative_rag_legal.json` |
-| `run_cross_track_transfer.py` | `results/phase14/cross_track_transfer.json` |
-| `run_held_out_complete.py` | `results/phase15/held_out_complete.json` |
-
----
-
-## Phase 16 — EC Extension (DeepInfra)
-
-SambaNova deprecated Meta-Llama-3.1-8B-Instruct on 2026-04-14. Phase 16
-migrates to DeepInfra (FP8, $0.02/M input, no daily token ceiling) with an
-8-gene `FullV2Config` chromosome and 3 independent seeds on General-QA and 1 seed on Legal (seeds 123 and 7 for Legal were deferred due to API budget constraints following the provider migration).
-
-### Provider setup
-
-```bash
-# Set INFERENCE_PROVIDER=deepinfra in .env
-# Add DEEPINFRA_API_KEY (get from deepinfra.com/dash/api_keys)
-# RAGAS faithfulness judge uses Llama-3.3-70B-Instruct-Turbo
-# via DeepInfra — no separate key needed,
-# DEEPINFRA_API_KEY is reused.
-```
-
-### Reproduction steps (in order)
-
-```bash
-# 1. Provider calibration (verify DeepInfra ≈ SambaNova ±3%)
-INFERENCE_PROVIDER=deepinfra python scripts/run_provider_calibration.py
-
-# 2. GA search — General-QA (3 seeds, run sequentially or in parallel)
-INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_general_qa_seed42.py
-INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_general_qa_seed123.py
-INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_general_qa_seed7.py
-
-# 3. GA search — Legal (3 seeds)
-INFERENCE_PROVIDER=deepinfra python scripts/run_phase16_legal_seed42.py
-# Note: Legal seeds 123 and 7 were not completed
-# due to API budget constraints following the
-# provider migration. Only seed 42 is reproduced.
-
-# 4. Held-out evaluation (all systems, BERTScore)
-INFERENCE_PROVIDER=deepinfra python scripts/run_held_out_phase16.py
-
-# 5. RAGAS Faithfulness (Llama-3.3-70B-Instruct-Turbo via DeepInfra)
-python scripts/run_ragas_faithfulness.py
-
-# 6. Statistical analysis
-python scripts/run_statistical_analysis.py
-
-# 7. Generate figures
 python scripts/generate_phase16_figures.py
 ```
 
-### Expected costs
+A fresh Phase 16 run requires provider credentials and access to the model. Copy [`.env.example`](.env.example) to `.env` and set `INFERENCE_PROVIDER=deepinfra` and `DEEPINFRA_API_KEY` locally. Prepare the [data subsets](data/raw/README.md) in a fresh checkout, and install `bert-score` for the extended held-out evaluation.
 
-| Component | Est. tokens | Cost |
-|-----------|------------|------|
-| 3 QA GA runs (pop=50 x gen=100) | ~1.5B input | ~$30 |
-| 1 Legal GA run (pop=50 x gen=100) | ~200M | ~$4 |
-| Held-out evaluation (n=300 per track) | ~500M | ~$10 |
-| RAGAS Faithfulness (DeepInfra 70B) | ~50M | ~$1 |
-| **Total** | | **~$45** |
-
-### Expected wall clock
-
-~8 hours total (3 QA GA runs at ~2h each, 1 Legal GA run at ~2h).
-Checkpoint/resume: safe to interrupt and restart any GA script.
-
-### Phase 16 output locations
-
-| Script | Output |
-|--------|--------|
-| `run_provider_calibration.py` | `results/phase16/calibration.json` |
-| `run_phase16_general_qa_seed*.py` | `results/phase16/general_qa/seed_*/` |
-| `run_phase16_legal_seed*.py` | `results/phase16/legal/seed_*/` |
-| `run_held_out_phase16.py` | `results/phase16/held_out_phase16.json` |
-| `run_ragas_faithfulness.py` | `results/phase16/ragas_faithfulness.json` |
-| `run_statistical_analysis.py` | `results/phase16/statistical_analysis.json` |
-| `generate_phase16_figures.py` | `results/phase16/figures/*.png` |
-
----
-
-## Project structure
-
-```
-src/rag_evo/        # Installable package
-configs/            # YAML experiment configurations
-data/raw/           # Immutable raw datasets (gitignored, download locally)
-data/processed/     # Transformed data
-data/indexes/       # Vector index artifacts
-results/            # Experiment output JSON artifacts
-logs/               # Timestamped run logs
-tests/              # Pytest test suite
-docs/               # Implementation contract and design notes
-notebooks/          # Exploratory notebooks
-scripts/            # One-off utility scripts
+```bash
+python scripts/rebuild_debug_subsets.py
+python scripts/run_phase16_general_qa_seed42.py
+python scripts/run_phase16_general_qa_seed123.py
+python scripts/run_phase16_general_qa_seed7.py
+python scripts/run_phase16_legal_seed42.py
+python scripts/run_held_out_phase16.py
+python scripts/run_ragas_faithfulness.py
 ```
 
----
-
-## Key constraints
-
-- Generator model is fixed: Llama-3.1-8B-Instruct. No alternatives.
-- `citations_required` is always `True` — it is a constant, not a parameter.
-- `top_p` is fixed at `1.0` — not tunable.
-- Raw data in `data/raw/` is immutable. Never write to it.
-- All random operations must use `set_global_seed()` for reproducibility.
+The rebuild script replaces the derived debug subsets and removes its temporary backups after success. The search scripts use checkpoints. The held-out and judge scripts use saved outputs to resume, so use a separate working copy if you need to preserve the original artifacts or run a fresh comparison. The judge script requires per-system pipeline outputs with retrieved context. Provider behaviour and cache contents can affect reruns.
