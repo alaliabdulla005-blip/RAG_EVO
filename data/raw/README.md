@@ -1,61 +1,18 @@
-# data/raw — Immutable Raw Data
+# Dataset inputs
 
-This directory is **immutable**. Files here must never be modified, overwritten,
-or deleted once downloaded. All transformations produce outputs in `data/processed/`.
+The dissertation evaluates HotpotQA and CUAD QA. The current loaders retrieve the datasets through Hugging Face and cache the downloaded inputs locally.
 
-All files in this directory are gitignored. You must download them locally before
-running any data ingestion phases.
+| Track | Source and split | Loader |
+| --- | --- | --- |
+| General QA | HotpotQA distractor validation split | [HotpotQA loader](../../src/rag_evo/data/hotpotqa_loader.py) |
+| Legal QA | `chenghao/cuad_qa`, test split | [CUAD loader](../../src/rag_evo/data/legal_loader.py) |
 
----
+Run the following from the repository root after installing the package:
 
-## Datasets
+```bash
+python scripts/rebuild_debug_subsets.py
+```
 
-### 1. HotpotQA (distractor setting)
+The [rebuild script](../../scripts/rebuild_debug_subsets.py) prepares 500 HotpotQA records and 400 CUAD records under `data/processed/`. It replaces the derived debug subsets and removes its temporary backups after success. Phase 16 uses records 0–49 for development in both tracks, records 100–399 for general-QA evaluation and records 50–349 for legal evaluation.
 
-- **Source:** https://hotpotqa.github.io
-- **Download instructions:**
-  ```bash
-  mkdir -p data/raw/hotpotqa
-  curl -L http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_train_v1.1.json \
-       -o data/raw/hotpotqa/hotpot_train_v1.1.json
-  curl -L http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_dev_distractor_v1.json \
-       -o data/raw/hotpotqa/hotpot_dev_distractor_v1.json
-  ```
-- **Setting:** Use the **distractor** dev set for evaluation (not the fullwiki setting).
-
----
-
-### 2. CUAD — Contract Understanding Atticus Dataset
-
-- **Source:** https://huggingface.co/datasets/cuad
-- **Download instructions:**
-  ```bash
-  mkdir -p data/raw/cuad
-  python - <<'EOF'
-  from datasets import load_dataset
-  ds = load_dataset("cuad")
-  ds.save_to_disk("data/raw/cuad")
-  EOF
-  ```
-- Requires `pip install datasets` (install into your venv first).
-
----
-
-### 3. ContractNLI
-
-- **Source:** https://stanfordnlp.github.io/contract-nli
-- **Download instructions:**
-  ```bash
-  mkdir -p data/raw/contractnli
-  # Download from the Stanford NLP page linked above — direct download link is
-  # provided on the dataset page as a zip archive.
-  # Extract into data/raw/contractnli/
-  ```
-
----
-
-## Notes
-
-- All files in this directory are excluded from version control via `.gitignore`.
-- The `.gitkeep` file is the only tracked file here.
-- Download before beginning Phase 2 (data ingestion).
+The CUAD loader skips unanswerable records and truncates contract text before building the corpus. These choices define the evaluation subset. Keep original dataset downloads separate from derived files.
