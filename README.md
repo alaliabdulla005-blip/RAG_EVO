@@ -37,7 +37,7 @@ The [extended metrics](results/phase16/figures/phase16_extended_metrics.png) sho
 
 Phase 16 moved from SambaNova to DeepInfra after the original generator endpoint was retired. On the [50-question calibration](results/phase16/calibration.json), retrieval recall stayed at 0.730 and citation F1 fell from 0.437 to 0.426, a relative change of −2.59%. Answer F1 fell from 0.0587 to 0.0368 and mean latency rose from about 1.04 s to 2.08 s. The overall calibration verdict was a failure.
 
-The dissertation and presentation report $50.31 in total inference spend. The presentation reports about 95 hours for the full experimental programme. Separately, the logged runtimes of the four Phase 16 search runs add up to about 50 hours. Fresh costs and runtimes depend on provider rates, hardware and cache use.
+The full experimental programme took about 95 hours and cost $50.31 in inference. The logs for the four Phase 16 search runs total about 50 hours. Fresh costs and runtimes depend on provider rates, hardware and cache use.
 
 - The Direct LLM run used a context-only prompt without retrieved context. Its scores describe a context-constrained comparison.
 - The held-out entries for QA seeds 123 and 7 have different configurations and identical per-record outputs on both evaluation tracks. The runner can reuse cache entries across settings rounded to the same key. Treat the matching entries on each track as a single set of held-out predictions when interpreting stability.
